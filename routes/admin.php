@@ -514,6 +514,11 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('update/{id}', 'ContactController@update')->name('update');
             Route::post('send-mail/{id}', 'ContactController@send_mail')->name('send-mail');
         });
+        // Product Inquiries
+        Route::group(['prefix' => 'inquiries', 'as' => 'inquiries.', 'middleware'=>['module:support_section']], function () {
+            Route::get('list', 'InquiryController@index')->name('list');
+            Route::get('view/{id}', 'InquiryController@view')->name('view');
+        });
 
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
             Route::get('add', 'DeliveryManController@index')->name('add');

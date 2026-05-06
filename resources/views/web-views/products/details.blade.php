@@ -430,6 +430,12 @@
                                     </button>
                                 </div>
                             </form>
+                            <!-- INQUIRY BUTTON -->
+                            <div class="mt-3 mb-4">
+                                <button type="button" class="btn btn-block" data-toggle="modal" data-target="#inquiryModal" style="background: {{$web_config['primary_color']}}10; color: {{$web_config['primary_color']}}; border: 1px solid {{$web_config['primary_color']}}; font-weight: bold; height: 45px; border-radius: 5px;">
+                                    <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i> {{\App\CPU\translate('Request a Quote / Inquire About This Product')}}
+                                </button>
+                            </div>
 
                             <div style="text-align:{{Session::get('direction') === "rtl" ? 'right' : 'left'}};"
                                 class="sharethis-inline-share-buttons"></div>
@@ -1051,6 +1057,45 @@
                         <i class="fa fa-close"></i>
                     </button>
                     <img class="element-center" id="attachment-view" src="">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Inquiry Modal -->
+    <div class="modal fade" id="inquiryModal" tabindex="-1" role="dialog" aria-labelledby="inquiryModalLabel" aria-hidden="true" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header" style="background: {{$web_config['primary_color']}}; color: white;">
+                    <h5 class="modal-title" id="inquiryModalLabel" style="color: white;">{{\App\CPU\translate('Inquire about')}}: {{$product->name}}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: white; opacity: 1;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ route('product.inquiry.submit') }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                        
+                        <div class="form-group">
+                            <label for="customer_name">{{\App\CPU\translate('Your Name')}} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="customer_name" required placeholder="{{\App\CPU\translate('Enter your full name')}}">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone_number">{{\App\CPU\translate('Phone Number')}} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone_number" required placeholder="{{\App\CPU\translate('Enter your phone number')}}">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">{{\App\CPU\translate('Email Address')}} <small class="text-muted">({{\App\CPU\translate('Optional')}})</small></label>
+                            <input type="email" class="form-control" name="email" placeholder="{{\App\CPU\translate('Enter your email address')}}">
+                        </div>
+                        <div class="form-group">
+                            <label for="message">{{\App\CPU\translate('Message / Requirements')}} <span class="text-danger">*</span></label>
+                            <textarea class="form-control" name="message" rows="4" required placeholder="{{\App\CPU\translate('Please specify your quantity, location, or any technical questions...')}}"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-block" style="background: {{$web_config['primary_color']}}; color: white; font-weight: bold;">
+                            {{\App\CPU\translate('Send Inquiry')}} <i class="fa fa-paper-plane {{Session::get('direction') === "rtl" ? 'mr-2' : 'ml-2'}}"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

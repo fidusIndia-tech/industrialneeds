@@ -130,6 +130,8 @@ Route::group(['namespace' => 'Web','middleware'=>['maintenance_mode']], function
     Route::get('helpTopic', 'WebController@helpTopic')->name('helpTopic');
     //Contacts
     Route::get('contacts', 'WebController@contacts')->name('contacts');
+    // Product Inquiries
+    Route::post('product-inquiry', 'WebController@inquiry_store')->name('product.inquiry.submit');
 
     //sellerShop
     Route::get('shopView/{id}', 'WebController@seller_shop')->name('shopView');

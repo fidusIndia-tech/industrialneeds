@@ -699,6 +699,16 @@
                                     <small class="nav-subtitle" title="">{{\App\CPU\translate('support_section')}}</small>
                                     <small class="tio-more-horizontal nav-subtitle-replacer"></small>
                                 </li>
+                                <!-- Product Inquiries Menu Item -->
+                                <li class="navbar-vertical-aside-has-menu {{Request::is('admin/inquiries*')?'active':''}}">
+                                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.inquiries.list')}}">
+                                        <i class="tio-email nav-icon"></i>
+                                        <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                            {{\App\CPU\translate('Product Inquiries')}}
+                                        </span>
+                                    </a>
+                                </li>
+                                      <!-- End Product Inquiries -->
 
                                 <li class="navbar-vertical-aside-has-menu {{Request::is('admin/contact*')?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link"

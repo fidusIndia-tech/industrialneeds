@@ -1068,4 +1068,35 @@ class WebController extends Controller
         Toastr::success(translate('Your feedback Send Successfully'));
         return back();
     }
+    // Handle new Product Inquiries from the frontend
+    public function inquiry_store(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'customer_name' => 'required',
+            'phone_number' => 'required',
+            'message' => 'required'
+        ]);
+
+        // Save to Database (Using your older syntax Model location)
+        $lead = \App\Inquiry::create([
+            'product_id' => $request->product_id,
+            'customer_name' => $request->customer_name,
+            'phone_number' => $request->phone_number,
+            'email' => $request->email,
+            'message' => $request->message,
+        ]);
+
+        // Send Email Alert
+        try {
+            \Illuminate\Support\Facades\Mail::to('founder@industrialneeds.com')->send(new \App\Mail\NewInquiryAlert($lead));
+        } catch (\Exception $e) {
+            // Silently fail if email isn't configured yet so it doesn't crash the user's screen
+        }
+
+        // Show a success message to the customer
+        // Optional check to clear cache if needed
+        Toastr::success(\App\CPU\translate('Your inquiry has been sent successfully! We will contact you soon.'));
+        
+        return back();
+    }
 }

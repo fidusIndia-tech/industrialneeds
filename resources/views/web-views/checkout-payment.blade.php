@@ -405,26 +405,31 @@
                     </div>
                 </div>
 
-                <div class="row">
+               <div class="row">
                     <div class="col-md-12">
-                        <h2 class="h4 pb-3 mb-2 mt-5">UPI Payments</h2>
+                        <h2 class="h4 pb-3 mb-2 mt-5">{{\App\CPU\translate('UPI Payments')}}</h2>
                     </div>
+                    
                     <div class="col-md-12">
-                        <img src="{{asset('public/assets/front-end/img/phonepeQrcode.png')}}"/>
+                        <!-- POINT THIS TO YOUR NEW IMAGE NAME -->
+                        <img src="{{asset('public/assets/front-end/img/phonePayQr.jpeg')}}" style="max-width: 300px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;"/>
                     </div>  
-                    <div class="col-md-12 mt-2">
-                        <p class="alert alert-danger">Note: Please scan above phonepe scanner and pay the the amount, we will verify your payment then your order will confirmed</p>
+                    
+                    <div class="col-md-12 mt-3">
+                        <!-- CLEANED UP INSTRUCTIONS -->
+                        <p class="alert alert-info" style="max-width: 600px;">
+                            <strong>{{\App\CPU\translate('Note')}}:</strong> {{\App\CPU\translate('Please scan the QR code above to pay. Once you have completed the payment, click the button below to confirm your order.')}}
+                        </p>
+                        
                         <div class="row">
-                            <div class="col-4">
+                            <div class="col-md-4">
                                 <form action="{{route('checkout-complete',['payment_method'=>'cash_on_delivery'])}}" method="get" class="needs-validation">
-                                    <button class="btn btn-secondary btn-block" type="submit">Pay after scan</button>
+                                    <!-- Using cash_on_delivery logic temporarily to bypass gateway limits, just like the old code did -->
+                                    <button class="btn btn-primary btn-block" type="submit">{{\App\CPU\translate('I Have Paid')}}</button>
                                 </form>
                             </div>
-                            <div class="col-4"></div>
-                            <div class="col-4"></div>
                         </div>      
                     </div> 
-                               
                 </div>
             </section>
             <!-- Sidebar-->
@@ -629,14 +634,14 @@
             Swal.fire("Payment Failed!", message, "error");
         }
 
-        function click_if_alone() {
-            let total = $('.checkout_details .click-if-alone').length;
-            if (Number.parseInt(total) < 2) {
-                $('.click-if-alone').click()
-                $('.checkout_details').html('<h1>{{\App\CPU\translate('Redirecting_to_the_payment')}}......</h1>');
-            }
-        }
-        click_if_alone();
+        // function click_if_alone() {
+        //     let total = $('.checkout_details .click-if-alone').length;
+        //     if (Number.parseInt(total) < 2) {
+        //         $('.click-if-alone').click()
+        //         $('.checkout_details').html('<h1>{{\App\CPU\translate('Redirecting_to_the_payment')}}......</h1>');
+        //     }
+        // }
+        // click_if_alone();
 
     </script>
 @endpush

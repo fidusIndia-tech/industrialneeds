@@ -1839,4 +1839,9 @@
   'Send Inquiry' => 'Send Inquiry',
   'Your inquiry has been sent successfully! We will contact you soon.' => 'Your Inquiry Has Been Sent Successfully! We Will Contact You Soon.',
   'Product Inquiries' => 'Product Inquiries',
+  'UPI Payments' => 'UPI Payments',
+  'Note' => 'Note',
+  'Please scan the QR code above to pay. Once you have completed the payment, click the button below to confirm your order.' => 'Please Scan The QR Code Above To Pay. Once You Have Completed The Payment  Click The Button Below To Confirm Your Order.',
+  'I Have Paid' => 'I Have Paid',
+  'incomplete_info' => 'Incomplete info',
 );

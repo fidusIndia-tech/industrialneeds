@@ -405,27 +405,37 @@
                     </div>
                 </div>
 
-               <div class="row">
+              <div class="row">
                     <div class="col-md-12">
                         <h2 class="h4 pb-3 mb-2 mt-5">{{\App\CPU\translate('UPI Payments')}}</h2>
                     </div>
                     
                     <div class="col-md-12">
-                        <!-- POINT THIS TO YOUR NEW IMAGE NAME -->
-                        <img src="{{asset('public/assets/front-end/img/phonePayQr.jpeg')}}" style="max-width: 300px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;"/>
+                         <img src="{{asset('public/assets/front-end/img/phonePayQr.jpeg')}}" style="max-width: 300px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;"/>
                     </div>  
                     
                     <div class="col-md-12 mt-3">
-                        <!-- CLEANED UP INSTRUCTIONS -->
                         <p class="alert alert-info" style="max-width: 600px;">
-                            <strong>{{\App\CPU\translate('Note')}}:</strong> {{\App\CPU\translate('Please scan the QR code above to pay. Once you have completed the payment, click the button below to confirm your order.')}}
+                            <strong>{{\App\CPU\translate('Note')}}:</strong> {{\App\CPU\translate('Please scan the QR code above to pay. After a successful payment, enter your 12-digit UPI Transaction ID below to confirm your order.')}}
                         </p>
                         
                         <div class="row">
-                            <div class="col-md-4">
-                                <form action="{{route('checkout-complete',['payment_method'=>'cash_on_delivery'])}}" method="get" class="needs-validation">
-                                    <!-- Using cash_on_delivery logic temporarily to bypass gateway limits, just like the old code did -->
-                                    <button class="btn btn-primary btn-block" type="submit">{{\App\CPU\translate('I Have Paid')}}</button>
+                            <div class="col-md-6">
+                                <form action="{{route('checkout-complete')}}" method="get" class="needs-validation">
+                                    
+                                    <input type="hidden" name="payment_method" value="manual_upi">
+                                    
+                                    <div class="form-group">
+                                        <label for="transaction_ref" class="font-weight-bold">
+                                            {{\App\CPU\translate('UPI Transaction ID / UTR No.')}} <span class="text-danger">*</span>
+                                        </label>
+                                        <input type="text" class="form-control" name="transaction_ref" id="transaction_ref" 
+                                               placeholder="e.g., 312345678901" 
+                                               required minlength="12" maxlength="12" 
+                                               pattern="\d{12}" title="Please enter a valid 12-digit transaction ID">
+                                    </div>
+                                    
+                                    <button class="btn btn-primary btn-block" type="submit">{{\App\CPU\translate('Submit & Confirm Order')}}</button>
                                 </form>
                             </div>
                         </div>      

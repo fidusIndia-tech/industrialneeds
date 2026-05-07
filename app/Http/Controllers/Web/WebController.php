@@ -303,10 +303,11 @@ class WebController extends Controller
         $order_ids = [];
         foreach (CartManager::get_cart_group_ids() as $group_id) {
             $data = [
-                'payment_method' => 'cash_on_delivery',
+               // Listen to the frontend: if a method is sent, use it. Otherwise, default to COD.
+                'payment_method' => $request->payment_method ?? 'cash_on_delivery',
                 'order_status' => 'pending',
                 'payment_status' => 'unpaid',
-                'transaction_ref' => '',
+                'transaction_ref' => $request->transaction_ref ?? '',
                 'order_group_id' => $unique_id,
                 'cart_group_id' => $group_id
             ];

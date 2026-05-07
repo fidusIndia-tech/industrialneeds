@@ -1844,4 +1844,7 @@
   'Please scan the QR code above to pay. Once you have completed the payment, click the button below to confirm your order.' => 'Please Scan The QR Code Above To Pay. Once You Have Completed The Payment  Click The Button Below To Confirm Your Order.',
   'I Have Paid' => 'I Have Paid',
   'incomplete_info' => 'Incomplete info',
+  'Please scan the QR code above to pay. After a successful payment, enter your 12-digit UPI Transaction ID below to confirm your order.' => 'Please Scan The QR Code Above To Pay. After A Successful Payment  Enter Your 12-digit UPI Transaction ID Below To Confirm Your Order.',
+  'UPI Transaction ID / UTR No.' => 'UPI Transaction ID / UTR No.',
+  'Submit & Confirm Order' => 'Submit & Confirm Order',
 );

@@ -9,6 +9,7 @@ use App\Model\Translation;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class SubCategoryController extends Controller
 {
@@ -103,5 +104,22 @@ class SubCategoryController extends Controller
             $data = Category::where('position', 1)->orderBy('id', 'desc')->get();
             return response()->json($data);
         }
+    }
+    public function export()
+    {
+        // position 1 represents sub-categories. We also load the parent category.
+        $categories = \App\Model\Category::with(['parent'])->where(['position' => 1])->latest()->get();
+
+        $data = array();
+        foreach($categories as $category){
+            $data[] = array(
+                'Sub Category ID'      => $category->id,
+                'Sub Category Name'    => $category->name,
+                'Parent Category Name' => $category->parent ? $category->parent->name : 'N/A', // Helps data entry!
+                'Slug'                 => $category->slug,
+            );
+        }
+
+        return (new FastExcel($data))->download('sub_category_list.xlsx');
     }
 }

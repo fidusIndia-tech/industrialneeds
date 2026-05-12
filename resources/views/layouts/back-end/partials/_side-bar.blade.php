@@ -306,6 +306,13 @@
                                                 <span class="text-truncate">{{\App\CPU\translate('List')}}</span>
                                             </a>
                                         </li>
+                                        <li class="nav-item {{Request::is('admin/brand/bulk-import')?'active':''}}">
+                                            <a class="nav-link " href="{{route('admin.brand.bulk-import')}}">
+                                                <span class="tio-circle nav-indicator-icon"></span>
+                                                <span class="text-truncate">{{\App\CPU\translate('bulk_Import')}}</span>
+                                            </a>
+                                        </li>
+                                        
                                     </ul>
                                 </li>
                                 <li class="navbar-vertical-aside-has-menu {{(Request::is('admin/category*') ||Request::is('admin/sub*')) ?'active':''}}">

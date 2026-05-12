@@ -266,3 +266,4 @@ Route::get('/test', function (){
     $quantity = 6;
     return view('seller-views.product.barcode-pdf', compact('product', 'quantity'));
 });
+

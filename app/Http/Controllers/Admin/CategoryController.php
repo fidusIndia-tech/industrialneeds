@@ -10,6 +10,7 @@ use App\Model\Translation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Brian2694\Toastr\Facades\Toastr;
+use Rap2hpoutre\FastExcel\FastExcel;
 
 class CategoryController extends Controller
 {
@@ -156,5 +157,21 @@ class CategoryController extends Controller
         return response()->json([
             'success' => 1,
         ], 200);
+    }
+    public function export()
+    {
+        // This grabs all main categories (position 0 usually means parent category in this CMS)
+        $categories = \App\Model\Category::where(['position' => 0])->latest()->get();
+
+        $data = array();
+        foreach($categories as $category){
+            $data[] = array(
+                'Category ID'   => $category->id,
+                'Category Name' => $category->name,
+                'Slug'          => $category->slug,
+            );
+        }
+
+        return (new FastExcel($data))->download('category_list.xlsx');
     }
 }

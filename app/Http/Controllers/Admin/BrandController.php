@@ -95,6 +95,7 @@ class BrandController extends Controller
         $data = array();
         foreach($brands as $brand){
             $data[] = array(
+                'Brand ID'        => $brand->id,
                 'Brand Name'      => $brand->name,
                 'Total Product'   => $brand->brand_all_products_count,
                 'Total Order' => $brand->brandAllProducts->sum('order_details_count'),
@@ -165,5 +166,75 @@ class BrandController extends Controller
         ImageManager::delete('/brand/' . $brand['image']);
         $brand->delete();
         return response()->json();
+    }
+    public function bulk_import_index()
+    {
+        // Clear any old stuck session data so they start fresh
+        session()->forget('brand_import_data'); 
+        return view('admin-views.brand.bulk-import');
+    }
+
+    // Step 1: Read the file and show the preview
+    public function bulk_import_preview(Request $request)
+    {
+        try {
+            $collections = (new FastExcel)->import($request->file('products_file'));
+        } catch (\Exception $exception) {
+            Toastr::error('You have uploaded a wrong format file, please upload the right file.');
+            return back();
+        }
+
+        $data = [];
+        foreach ($collections as $collection) {
+            if (!array_key_exists('name', $collection)) {
+                Toastr::error('Import Failed: Your Excel column header must be exactly "name" (all lowercase).');
+                return back();
+            }
+            if ($collection['name'] === null || trim($collection['name']) === "") {
+                continue; 
+            }
+
+            array_push($data, [
+                'name' => $collection['name'],
+                'image' => $collection['image'] ?? 'def.png',
+                'status' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if (count($data) == 0) {
+            Toastr::warning('No valid brands found to import. Please check your file data.');
+            return back();
+        }
+
+        // Store the validated data temporarily in the session
+        session()->put('brand_import_data', $data);
+
+        // Return back to the view, but pass the preview data!
+        return view('admin-views.brand.bulk-import', ['preview_data' => $data]);
+    }
+
+    // Step 2: Save to the Database
+    public function bulk_import_data(Request $request)
+    {
+        // Pull the data back out of the session
+        $data = session()->get('brand_import_data');
+
+        if (!$data) {
+            Toastr::error('Session expired or no data found. Please upload the file again.');
+            return redirect()->route('admin.brand.bulk-import');
+        }
+
+        // Insert into database
+        DB::table('brands')->insert($data);
+        
+        // Clear the session now that we are done
+        session()->forget('brand_import_data');
+
+        Toastr::success(count($data) . ' - Brands imported successfully!');
+        
+        // Redirect them to the Brand List page so they can see their new brands instantly
+        return redirect()->route('admin.brand.list'); 
     }
 }

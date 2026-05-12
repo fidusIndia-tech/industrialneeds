@@ -97,13 +97,12 @@
                 <div class="card">
                     <div class="card-header">
 
-                        <div class=" row flex-between justify-content-between align-items-center flex-grow-1">
-                            <div class="col-12 col-md-7">
+                       <div class="row flex-between justify-content-between align-items-center flex-grow-1">
+                            <div class="col-12 col-md-5">
                                 <h5>{{ \App\CPU\translate('sub_category_table')}} <span style="color: red;">({{ $categories->total() }})</span></h5>
                             </div>
-                            <div class="col-12 col-md-5" style="width: 40vw">
-                                <!-- Search -->
-                                <form action="{{ url()->current() }}" method="GET">
+                            <div class="col-12 col-md-7 d-flex justify-content-end align-items-center">
+                                <form action="{{ url()->current() }}" method="GET" style="margin-right: 15px;">
                                     <div class="input-group input-group-merge input-group-flush">
                                         <div class="input-group-prepend">
                                             <div class="input-group-text">
@@ -115,7 +114,9 @@
                                         <button type="submit" class="btn btn-primary">{{\App\CPU\translate('search')}}</button>
                                     </div>
                                 </form>
-                                <!-- End Search -->
+                                <a href="{{route('admin.sub-category.export')}}" class="btn btn-success">
+                                    <i class="tio-download-to"></i> {{\App\CPU\translate('Export')}}
+                                </a>
                             </div>
                         </div>
                     </div>

@@ -97,6 +97,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('update/{id}', 'CategoryController@update')->name('update');
             Route::post('delete', 'CategoryController@delete')->name('delete');
             Route::post('status', 'CategoryController@status')->name('status');
+            Route::get('export', 'CategoryController@export')->name('export');
         });
 
         Route::group(['prefix' => 'sub-category', 'as' => 'sub-category.','middleware'=>['module:product_management']], function () {
@@ -106,6 +107,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('edit', 'SubCategoryController@edit')->name('edit');
             Route::post('update', 'SubCategoryController@update')->name('update');
             Route::post('delete', 'SubCategoryController@delete')->name('delete');
+            Route::get('export', 'SubCategoryController@export')->name('export');
         });
 
         Route::group(['prefix' => 'sub-sub-category', 'as' => 'sub-sub-category.','middleware'=>['module:product_management']], function () {
@@ -128,6 +130,11 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('delete', 'BrandController@delete')->name('delete');
             Route::get('export', 'BrandController@export')->name('export');
             Route::post('status-update', 'BrandController@status_update')->name('status-update');
+            // NEW: Bulk Import Routes
+            Route::get('bulk-import', 'BrandController@bulk_import_index')->name('bulk-import');
+            // NEW: The route that handles the file upload and shows the preview
+            Route::post('bulk-import-preview', 'BrandController@bulk_import_preview')->name('bulk-import-preview');
+            Route::post('bulk-import', 'BrandController@bulk_import_data');
         });
 
         Route::group(['prefix' => 'banner', 'as' => 'banner.','middleware'=>['module:marketing_section']], function () {

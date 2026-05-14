@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use Rap2hpoutre\FastExcel\FastExcel;
 use function App\CPU\translate;
 use App\Model\Cart;
@@ -813,7 +814,7 @@ class ProductController extends BaseController
         return view('admin-views.product.bulk-import');
     }
 
-    public function bulk_import_preview(Request $request)
+  public function bulk_import_preview(Request $request)
     {
         try {
             $collections = (new FastExcel)->import($request->file('products_file'));
@@ -822,7 +823,6 @@ class ProductController extends BaseController
             return back();
         }
 
-        // 1. THE BOUNCER'S LIST: Fetch all valid IDs
         $valid_brands = \App\Model\Brand::pluck('id')->toArray();
         $valid_categories = \App\Model\Category::where('position', 0)->pluck('id')->toArray();
         $valid_sub_categories = \App\Model\Category::where('position', 1)->pluck('id')->toArray();
@@ -830,7 +830,9 @@ class ProductController extends BaseController
 
         $data = [];
         $skipped_rows = 0;
-        $skip_empty_check = ['youtube_video_url', 'details', 'thumbnail', 'sub_category_id', 'sub_sub_category_id']; 
+        
+        // NEW: Added our new URL columns to the allowed-empty list
+        $skip_empty_check = ['youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls']; 
 
         foreach ($collections as $key => $collection) {
             $has_empty_required_field = false;
@@ -846,7 +848,6 @@ class ProductController extends BaseController
                 continue; 
             }
 
-            // STRICT BOUNCER CHECKS
             if (!in_array($collection['brand_id'], $valid_brands)) {
                 $skipped_rows++;
                 continue;
@@ -877,8 +878,6 @@ class ProductController extends BaseController
                 $category_ids[] = ['id' => (string)$sub_sub_cat_id, 'position' => 3];
             }
 
-            $thumbnail = explode('/', $collection['thumbnail']);
-
             array_push($data, [
                 'name' => $collection['name'],
                 'slug' => Str::slug($collection['name'], '-') . '-' . Str::random(6),
@@ -896,8 +895,9 @@ class ProductController extends BaseController
                 'details' => $collection['details'],
                 'video_provider' => 'youtube',
                 'video_url' => $collection['youtube_video_url'],
-                'images' => json_encode(['def.png']),
-                'thumbnail' => $thumbnail[1] ?? $thumbnail[0] ?? 'def.png',
+                // NEW: Map the URL columns from Excel
+                'thumbnail_url' => $collection['thumbnail_url'] ?? '',
+                'gallery_urls' => $collection['gallery_urls'] ?? '',
                 'status' => 1,
                 'request_status' => 1,
                 'colors' => json_encode([]),
@@ -925,6 +925,9 @@ class ProductController extends BaseController
 
     public function bulk_import_data(Request $request)
     {
+        // Prevent server timeout since downloading takes time
+        set_time_limit(0); 
+
         $data = session()->get('product_import_data');
 
         if (!$data) {
@@ -932,52 +935,81 @@ class ProductController extends BaseController
             return redirect()->route('admin.product.bulk-import');
         }
 
-        DB::table('products')->insert($data);
-        session()->forget('product_import_data');
+        $formatted_data = [];
 
-        Toastr::success(count($data) . ' - Products imported successfully!');
-        return redirect()->route('admin.product.list', ['in_house']);
-    }
+        foreach ($data as $product) {
+            $thumbnail_name = 'def.png';
+            $gallery_names = ['def.png'];
 
-    public function bulk_export_data()
-    {
-        $products = Product::where(['added_by' => 'admin'])->get();
-        //export from product
-        $storage = [];
-        foreach ($products as $item) {
-            $category_id = 0;
-            $sub_category_id = 0;
-            $sub_sub_category_id = 0;
-            foreach (json_decode($item->category_ids, true) as $category) {
-                if ($category['position'] == 1) {
-                    $category_id = $category['id'];
-                } else if ($category['position'] == 2) {
-                    $sub_category_id = $category['id'];
-                } else if ($category['position'] == 3) {
-                    $sub_sub_category_id = $category['id'];
+            // 1. Download Main Thumbnail
+            $thumb_url = $product['thumbnail_url'] ?? ''; 
+            if (filter_var($thumb_url, FILTER_VALIDATE_URL)) {
+                try {
+                    $imageContents = file_get_contents($thumb_url);
+                    if ($imageContents) {
+                        $thumbnail_name = \Carbon\Carbon::now()->toDateString() . '-' . uniqid() . '.png';
+                        // Save directly to your public folder
+                        Storage::disk('public')->put('product/thumbnail/' . $thumbnail_name, $imageContents);
+                    }
+                } catch (\Exception $e) {
+                    // Silently fail to def.png if the URL is broken or blocked
                 }
             }
-            $storage[] = [
-                'name' => $item->name,
-                'category_id' => $category_id,
-                'sub_category_id' => $sub_category_id,
-                'sub_sub_category_id' => $sub_sub_category_id,
-                'brand_id' => $item->brand_id,
-                'unit' => $item->unit,
-                'min_qty' => $item->min_qty,
-                'refundable' => $item->refundable,
-                'youtube_video_url' => $item->video_url,
-                'unit_price' => $item->unit_price,
-                'purchase_price' => $item->purchase_price,
-                'tax' => $item->tax,
-                'discount' => $item->discount,
-                'discount_type' => $item->discount_type,
-                'current_stock' => $item->current_stock,
-                'details' => $item->details,
-                'thumbnail' => 'thumbnail/' . $item->thumbnail,
-            ];
+
+            // 2. Download Gallery Images (Comma-separated)
+            $gallery_urls_string = $product['gallery_urls'] ?? '';
+            $downloaded_galleries = [];
+
+            if (!empty($gallery_urls_string)) {
+                $urls = explode(',', $gallery_urls_string);
+                
+                foreach ($urls as $url) {
+                    $url = trim($url);
+                    if (filter_var($url, FILTER_VALIDATE_URL)) {
+                        try {
+                            $img_content = file_get_contents($url);
+                            if ($img_content) {
+                                $gal_name = \Carbon\Carbon::now()->toDateString() . '-' . uniqid() . '.png';
+                                Storage::disk('public')->put('product/' . $gal_name, $img_content);
+                                $downloaded_galleries[] = $gal_name;
+                            }
+                        } catch (\Exception $e) {
+                            // Skip broken gallery links
+                        }
+                    }
+                }
+            }
+
+            // 3. SMART FALLBACK: If they didn't provide gallery images, but DID provide a thumbnail, copy the thumbnail into the gallery!
+            if (count($downloaded_galleries) > 0) {
+                $gallery_names = $downloaded_galleries;
+            } elseif ($thumbnail_name !== 'def.png') {
+                // Copy the thumbnail from the thumbnail folder into the main product gallery folder
+                Storage::disk('public')->copy('product/thumbnail/' . $thumbnail_name, 'product/' . $thumbnail_name);
+                $gallery_names = [$thumbnail_name]; // Use the copied thumbnail as the only gallery image
+            } else {
+                $gallery_names = ['def.png'];
+            }
+
+            // Remove the temporary URL columns and add the real filenames before database insertion
+
+            // Remove the temporary URL columns and add the real filenames before database insertion
+            unset($product['thumbnail_url']);
+            unset($product['gallery_urls']);
+            
+            $product['thumbnail'] = $thumbnail_name;
+            $product['images'] = json_encode($gallery_names);
+            $product['created_at'] = now();
+            $product['updated_at'] = now();
+
+            $formatted_data[] = $product;
         }
-        return (new FastExcel($storage))->download('inhouse_products.xlsx');
+
+        DB::table('products')->insert($formatted_data);
+        session()->forget('product_import_data');
+
+        Toastr::success(count($formatted_data) . ' - Products and images imported successfully!');
+        return redirect()->route('admin.product.list', ['in_house']);
     }
 
     public function barcode(Request $request, $id)

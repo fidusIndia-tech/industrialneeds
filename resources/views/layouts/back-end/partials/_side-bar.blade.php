@@ -315,7 +315,7 @@
                                         
                                     </ul>
                                 </li>
-                                <li class="navbar-vertical-aside-has-menu {{(Request::is('admin/category*') ||Request::is('admin/sub*')) ?'active':''}}">
+                              <li class="navbar-vertical-aside-has-menu {{(Request::is('admin/category*') ||Request::is('admin/sub*')) ?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle"
                                     href="javascript:">
                                         <i class="tio-filter-list nav-icon"></i>
@@ -330,7 +330,6 @@
                                                 <span class="tio-circle nav-indicator-icon"></span>
                                                 <span class="text-truncate">{{\App\CPU\translate('category')}}</span>
                                             </a>
-
                                         </li>
                                         <li class="nav-item {{Request::is('admin/sub-category/view')?'active':''}}">
                                             <a class="nav-link " href="{{route('admin.sub-category.view')}}">
@@ -341,9 +340,24 @@
                                         <li class="nav-item {{Request::is('admin/sub-sub-category/view')?'active':''}}">
                                             <a class="nav-link " href="{{route('admin.sub-sub-category.view')}}">
                                                 <span class="tio-circle nav-indicator-icon"></span>
-                                                <span
-                                                    class="text-truncate">{{\App\CPU\translate('sub_Sub_Category')}}</span>
+                                                <span class="text-truncate">{{\App\CPU\translate('sub_Sub_Category')}}</span>
                                             </a>
+                                        </li>
+
+                                        <li class="nav-item {{Request::is('admin/category/bulk-import')?'active':''}}">
+                                            <a class="nav-link " href="{{route('admin.category.bulk-import')}}">
+                                                <span class="tio-circle nav-indicator-icon"></span>
+                                                <span class="text-truncate">{{\App\CPU\translate('Bulk Import')}}</span>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item {{Request::is('admin/sub-category/bulk-import')?'active':''}}">
+                                            <a class="nav-link " href="{{route('admin.sub-category.bulk-import')}}">
+                                                <span class="tio-circle nav-indicator-icon"></span>
+                                                <span class="text-truncate">{{\App\CPU\translate('Sub-Category Bulk Import')}}</span>
+                                            </a>
+                                        </li>
+                                        </ul>
+                                </li>
                                         </li>
                                     </ul>
                                 </li>

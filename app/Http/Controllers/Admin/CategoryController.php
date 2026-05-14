@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Brian2694\Toastr\Facades\Toastr;
 use Rap2hpoutre\FastExcel\FastExcel;
+use Illuminate\Support\Facades\DB;
 
 class CategoryController extends Controller
 {
@@ -173,5 +174,67 @@ class CategoryController extends Controller
         }
 
         return (new FastExcel($data))->download('category_list.xlsx');
+    }
+    public function bulk_import_index()
+    {
+        session()->forget('category_import_data'); 
+        return view('admin-views.category.bulk-import');
+    }
+
+    public function bulk_import_preview(Request $request)
+    {
+        try {
+            $collections = (new FastExcel)->import($request->file('products_file'));
+        } catch (\Exception $exception) {
+            Toastr::error('You have uploaded a wrong format file, please upload the right file.');
+            return back();
+        }
+
+        $data = [];
+        foreach ($collections as $collection) {
+            if (!array_key_exists('name', $collection)) {
+                Toastr::error('Import Failed: Your Excel column header must be exactly "name" (all lowercase).');
+                return back();
+            }
+            if ($collection['name'] === null || trim($collection['name']) === "") {
+                continue; 
+            }
+
+            array_push($data, [
+                'name'        => $collection['name'],
+                'slug'        => \Illuminate\Support\Str::slug($collection['name'], '-'), // Auto-generates the URL slug
+                'icon'        => $collection['icon'] ?? 'def.png', // Fallback icon
+                'parent_id'   => 0, // 0 means it is a Main Category
+                'position'    => 0, // 0 means it is a Main Category
+                'priority'    => 0, // Default priority
+                'home_status' => 1, // Visible on home page by default
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
+        if (count($data) == 0) {
+            Toastr::warning('No valid categories found to import. Please check your file data.');
+            return back();
+        }
+
+        session()->put('category_import_data', $data);
+        return view('admin-views.category.bulk-import', ['preview_data' => $data]);
+    }
+
+    public function bulk_import_data(Request $request)
+    {
+        $data = session()->get('category_import_data');
+
+        if (!$data) {
+            Toastr::error('Session expired or no data found. Please upload the file again.');
+            return redirect()->route('admin.category.bulk-import');
+        }
+
+        DB::table('categories')->insert($data);
+        session()->forget('category_import_data');
+
+        Toastr::success(count($data) . ' - Categories imported successfully!');
+        return redirect()->route('admin.category.view'); 
     }
 }

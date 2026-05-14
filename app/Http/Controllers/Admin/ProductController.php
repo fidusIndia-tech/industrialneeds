@@ -807,12 +807,13 @@ class ProductController extends BaseController
         return back();
     }
 
-    public function bulk_import_index()
+   public function bulk_import_index()
     {
+        session()->forget('product_import_data'); 
         return view('admin-views.product.bulk-import');
     }
 
-    public function bulk_import_data(Request $request)
+    public function bulk_import_preview(Request $request)
     {
         try {
             $collections = (new FastExcel)->import($request->file('products_file'));
@@ -821,15 +822,59 @@ class ProductController extends BaseController
             return back();
         }
 
+        // 1. THE BOUNCER'S LIST: Fetch all valid IDs
+        $valid_brands = \App\Model\Brand::pluck('id')->toArray();
+        $valid_categories = \App\Model\Category::where('position', 0)->pluck('id')->toArray();
+        $valid_sub_categories = \App\Model\Category::where('position', 1)->pluck('id')->toArray();
+        $valid_sub_sub_categories = \App\Model\Category::where('position', 2)->pluck('id')->toArray();
 
         $data = [];
-        $skip = ['youtube_video_url', 'details', 'thumbnail'];
-        foreach ($collections as $collection) {
-            foreach ($collection as $key => $value) {
-                if ($key!="" && $value === "" && !in_array($key, $skip)) {
-                    Toastr::error('Please fill ' . $key . ' fields');
-                    return back();
+        $skipped_rows = 0;
+        $skip_empty_check = ['youtube_video_url', 'details', 'thumbnail', 'sub_category_id', 'sub_sub_category_id']; 
+
+        foreach ($collections as $key => $collection) {
+            $has_empty_required_field = false;
+            foreach ($collection as $col_key => $value) {
+                if ($col_key != "" && $value === "" && !in_array($col_key, $skip_empty_check)) {
+                    $has_empty_required_field = true;
+                    break;
                 }
+            }
+
+            if ($has_empty_required_field) {
+                $skipped_rows++;
+                continue; 
+            }
+
+            // STRICT BOUNCER CHECKS
+            if (!in_array($collection['brand_id'], $valid_brands)) {
+                $skipped_rows++;
+                continue;
+            }
+
+            if (!in_array($collection['category_id'], $valid_categories)) {
+                $skipped_rows++;
+                continue;
+            }
+
+            $sub_cat_id = $collection['sub_category_id'] ?: 0;
+            $sub_sub_cat_id = $collection['sub_sub_category_id'] ?: 0;
+
+            if ($sub_cat_id != 0 && !in_array($sub_cat_id, $valid_sub_categories)) {
+                $skipped_rows++;
+                continue;
+            }
+            if ($sub_sub_cat_id != 0 && !in_array($sub_sub_cat_id, $valid_sub_sub_categories)) {
+                $skipped_rows++;
+                continue;
+            }
+
+            $category_ids = [['id' => (string)$collection['category_id'], 'position' => 1]];
+            if ($sub_cat_id != 0) {
+                $category_ids[] = ['id' => (string)$sub_cat_id, 'position' => 2];
+            }
+            if ($sub_sub_cat_id != 0) {
+                $category_ids[] = ['id' => (string)$sub_sub_cat_id, 'position' => 3];
             }
 
             $thumbnail = explode('/', $collection['thumbnail']);
@@ -837,7 +882,7 @@ class ProductController extends BaseController
             array_push($data, [
                 'name' => $collection['name'],
                 'slug' => Str::slug($collection['name'], '-') . '-' . Str::random(6),
-                'category_ids' => json_encode([['id' => (string)$collection['category_id'], 'position' => 1], ['id' => (string)$collection['sub_category_id'], 'position' => 2], ['id' => (string)$collection['sub_sub_category_id'], 'position' => 3]]),
+                'category_ids' => json_encode($category_ids), 
                 'brand_id' => $collection['brand_id'],
                 'unit' => $collection['unit'],
                 'min_qty' => $collection['min_qty'],
@@ -852,7 +897,7 @@ class ProductController extends BaseController
                 'video_provider' => 'youtube',
                 'video_url' => $collection['youtube_video_url'],
                 'images' => json_encode(['def.png']),
-                'thumbnail' => $thumbnail[1]??$thumbnail[0],
+                'thumbnail' => $thumbnail[1] ?? $thumbnail[0] ?? 'def.png',
                 'status' => 1,
                 'request_status' => 1,
                 'colors' => json_encode([]),
@@ -865,9 +910,33 @@ class ProductController extends BaseController
             ]);
         }
      
+        if (count($data) == 0) {
+            Toastr::error('No valid products found. Check your required fields and IDs!');
+            return back();
+        }
+
+        if ($skipped_rows > 0) {
+            Toastr::warning("Skipped {$skipped_rows} row(s) due to missing fields or invalid IDs.");
+        }
+
+        session()->put('product_import_data', $data);
+        return view('admin-views.product.bulk-import', ['preview_data' => $data]);
+    }
+
+    public function bulk_import_data(Request $request)
+    {
+        $data = session()->get('product_import_data');
+
+        if (!$data) {
+            Toastr::error('Session expired or no data found. Please upload the file again.');
+            return redirect()->route('admin.product.bulk-import');
+        }
+
         DB::table('products')->insert($data);
+        session()->forget('product_import_data');
+
         Toastr::success(count($data) . ' - Products imported successfully!');
-        return back();
+        return redirect()->route('admin.product.list', ['in_house']);
     }
 
     public function bulk_export_data()

@@ -1,41 +1,38 @@
 @extends('layouts.back-end.app')
 
-@section('title', \App\CPU\translate('Product Bulk Import'))
+@section('title', \App\CPU\translate('Category Bulk Import'))
 
 @push('css_or_js')
 @endpush
 
 @section('content')
     <div class="content container-fluid">
-        
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{route('admin.dashboard')}}">{{\App\CPU\translate('Dashboard')}}</a>
-                </li>
-                <li class="breadcrumb-item" aria-current="page"><a
-                        href="{{route('admin.product.list', ['in_house',''])}}">{{\App\CPU\translate('Product')}}</a>
-                </li>
-                <li class="breadcrumb-item">{{\App\CPU\translate('bulk_import')}} </li>
-            </ol>
-        </nav>
+        <div class="page-header">
+            <div class="row align-items-center">
+                <div class="col-sm mb-2 mb-sm-0">
+                    <h1 class="page-header-title">
+                        <i class="tio-add-circle-outlined"></i> {{\App\CPU\translate('Bulk_Import_Categories')}}
+                    </h1>
+                </div>
+            </div>
+        </div>
 
         <div class="row" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
             <div class="col-12">
-                <div class="card border-primary">
+                <div class="card">
                     <div class="card-body">
-                        <h5 class="mb-4 text-primary"><i class="tio-info-outined"></i> {{\App\CPU\translate('Crucial Instructions')}} :</h5>
-                        <p> 1. {{\App\CPU\translate('Download the format file below.')}}</p>
-                        <p> 2. {{\App\CPU\translate('You MUST use exact ID numbers for Category ID and Brand ID. Do not type words.')}}</p>
-                        <p> 3. {{\App\CPU\translate('To get these IDs, go to the Category and Brand pages and click the green Export buttons to download your cheat sheets.')}}</p>
-                        <p> 4. {{\App\CPU\translate('Sub-Category IDs are optional. If you do not have them, leave the columns blank.')}}</p>
+                        <h5 class="mb-4 text-primary">{{\App\CPU\translate('Instructions')}} :</h5>
+                        <p> 1. {{\App\CPU\translate('Download the format file and fill it with your category data.')}}</p>
+                        <p> 2. {{\App\CPU\translate('The file MUST contain a column named exactly "name".')}}</p>
+                        <p> 3. {{\App\CPU\translate('Once you have filled the format file, upload it in the form below and click Preview.')}}</p>
                     </div>
                 </div>
 
                 @if(isset($preview_data))
-                    <div class="card mt-2 border-success">
+                    <div class="card mt-2 border-primary">
                         <div class="card-header bg-light">
-                            <h4 class="mb-0 text-success">
-                                <i class="tio-file-text-outlined"></i> {{\App\CPU\translate('Preview of Products to Import')}} ({{ count($preview_data) }} {{\App\CPU\translate('valid rows found')}})
+                            <h4 class="mb-0 text-primary">
+                                <i class="tio-file-text-outlined"></i> {{\App\CPU\translate('Preview of Categories to Import')}} ({{ count($preview_data) }} {{\App\CPU\translate('found')}})
                             </h4>
                         </div>
                         <div class="card-body">
@@ -44,31 +41,29 @@
                                     <thead class="thead-light">
                                         <tr>
                                             <th>{{\App\CPU\translate('Row')}} #</th>
-                                            <th>{{\App\CPU\translate('Product Name')}}</th>
-                                            <th>{{\App\CPU\translate('Brand ID')}}</th>
-                                            <th>{{\App\CPU\translate('Price')}}</th>
-                                            <th>{{\App\CPU\translate('Stock')}}</th>
+                                            <th>{{\App\CPU\translate('Category Name')}}</th>
+                                            <th>{{\App\CPU\translate('Generated Slug')}}</th>
+                                            <th>{{\App\CPU\translate('Icon File Name')}}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($preview_data as $key => $product)
+                                        @foreach($preview_data as $key => $category)
                                         <tr>
                                             <td>{{ $key + 1 }}</td>
-                                            <td class="font-weight-bold text-left">{{ $product['name'] }}</td>
-                                            <td>{{ $product['brand_id'] }}</td>
-                                            <td>${{ number_format($product['unit_price'], 2) }}</td>
-                                            <td>{{ $product['current_stock'] }}</td>
+                                            <td class="font-weight-bold">{{ $category['name'] }}</td>
+                                            <td class="text-muted">{{ $category['slug'] }}</td>
+                                            <td><span class="badge badge-soft-secondary">{{ $category['icon'] }}</span></td>
                                         </tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
                             
-                            <form action="{{route('admin.product.bulk-import')}}" method="POST" class="mt-4 d-flex justify-content-end">
+                            <form action="{{route('admin.category.bulk-import')}}" method="POST" class="mt-4 d-flex justify-content-end gap-3">
                                 @csrf
-                                <a href="{{route('admin.product.bulk-import')}}" class="btn btn-secondary mr-3">{{\App\CPU\translate('Cancel')}}</a>
+                                <a href="{{route('admin.category.bulk-import')}}" class="btn btn-secondary mr-2">{{\App\CPU\translate('Cancel')}}</a>
                                 <button type="submit" class="btn btn-success">
-                                    <i class="tio-save"></i> {{\App\CPU\translate('Confirm & Import Products')}}
+                                    <i class="tio-save"></i> {{\App\CPU\translate('Confirm & Import Categories')}}
                                 </button>
                             </form>
                         </div>
@@ -76,7 +71,7 @@
                 @else
                     <div class="card mt-2">
                         <div class="card-body">
-                            <form class="product-form" action="{{route('admin.product.bulk-import-preview')}}" method="POST"
+                            <form class="product-form" action="{{route('admin.category.bulk-import-preview')}}" method="POST"
                                   enctype="multipart/form-data">
                                 @csrf
                                 <div class="row">
@@ -92,8 +87,8 @@
                                 </div>
                                 
                                 <div class="row mt-4">
-                                    <div class="col-12 d-flex">
-                                        <a href="{{asset('public/assets/product_bulk_format.xlsx')}}" class="btn btn-secondary mr-3" download>
+                                    <div class="col-12 d-flex gap-3">
+                                        <a href="{{asset('public/assets/category_bulk_format.xlsx')}}" class="btn btn-secondary mr-2" download>
                                             <i class="tio-download-to"></i> {{\App\CPU\translate('Download_Format')}}
                                         </a>
                                         <button type="submit" class="btn btn-primary">

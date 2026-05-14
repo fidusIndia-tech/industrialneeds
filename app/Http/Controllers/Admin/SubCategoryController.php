@@ -10,6 +10,7 @@ use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Rap2hpoutre\FastExcel\FastExcel;
+use Illuminate\Support\Facades\DB;
 
 class SubCategoryController extends Controller
 {
@@ -121,5 +122,68 @@ class SubCategoryController extends Controller
         }
 
         return (new FastExcel($data))->download('sub_category_list.xlsx');
+    }
+    public function bulk_import_index()
+    {
+        session()->forget('sub_category_import_data'); 
+        return view('admin-views.category.sub-category-bulk-import');
+    }
+
+    public function bulk_import_preview(Request $request)
+    {
+        try {
+            $collections = (new FastExcel)->import($request->file('products_file'));
+        } catch (\Exception $exception) {
+            Toastr::error('You have uploaded a wrong format file, please upload the right file.');
+            return back();
+        }
+
+        $data = [];
+        foreach ($collections as $collection) {
+            // VALIDATION: Sub-categories MUST have both a name and a parent_id
+            if (!array_key_exists('name', $collection) || !array_key_exists('parent_id', $collection)) {
+                Toastr::error('Import Failed: Your Excel headers must be exactly "name" and "parent_id" (all lowercase).');
+                return back();
+            }
+            if ($collection['name'] === null || trim($collection['name']) === "" || $collection['parent_id'] === "") {
+                continue; 
+            }
+
+            array_push($data, [
+                'name'        => $collection['name'],
+                'slug'        => \Illuminate\Support\Str::slug($collection['name'], '-'),
+                'icon'        => 'def.png', // Sub-categories rarely use icons, default it
+                'parent_id'   => $collection['parent_id'], // Uses the ID from the cheat sheet!
+                'position'    => 1, // 1 means it is a Sub-Category
+                'priority'    => 0,
+                'home_status' => 1,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
+        if (count($data) == 0) {
+            Toastr::warning('No valid sub-categories found to import. Please check your file data.');
+            return back();
+        }
+
+        session()->put('sub_category_import_data', $data);
+        return view('admin-views.category.sub-category-bulk-import', ['preview_data' => $data]);
+    }
+
+    public function bulk_import_data(Request $request)
+    {
+        $data = session()->get('sub_category_import_data');
+
+        if (!$data) {
+            Toastr::error('Session expired or no data found. Please upload the file again.');
+            return redirect()->route('admin.sub-category.bulk-import');
+        }
+
+        DB::table('categories')->insert($data);
+        session()->forget('sub_category_import_data');
+
+        Toastr::success(count($data) . ' - Sub Categories imported successfully!');
+        return redirect()->route('admin.sub-category.view'); 
     }
 }

@@ -98,6 +98,10 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('delete', 'CategoryController@delete')->name('delete');
             Route::post('status', 'CategoryController@status')->name('status');
             Route::get('export', 'CategoryController@export')->name('export');
+            // NEW: Category Bulk Import Routes
+            Route::get('bulk-import', 'CategoryController@bulk_import_index')->name('bulk-import');
+            Route::post('bulk-import-preview', 'CategoryController@bulk_import_preview')->name('bulk-import-preview');
+            Route::post('bulk-import', 'CategoryController@bulk_import_data');
         });
 
         Route::group(['prefix' => 'sub-category', 'as' => 'sub-category.','middleware'=>['module:product_management']], function () {
@@ -108,6 +112,10 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('update', 'SubCategoryController@update')->name('update');
             Route::post('delete', 'SubCategoryController@delete')->name('delete');
             Route::get('export', 'SubCategoryController@export')->name('export');
+            // NEW: Sub-Category Bulk Import Routes
+            Route::get('bulk-import', 'SubCategoryController@bulk_import_index')->name('bulk-import');
+            Route::post('bulk-import-preview', 'SubCategoryController@bulk_import_preview')->name('bulk-import-preview');
+            Route::post('bulk-import', 'SubCategoryController@bulk_import_data');
         });
 
         Route::group(['prefix' => 'sub-sub-category', 'as' => 'sub-sub-category.','middleware'=>['module:product_management']], function () {
@@ -287,6 +295,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
 
             Route::get('view/{id}', 'ProductController@view')->name('view');
             Route::get('bulk-import', 'ProductController@bulk_import_index')->name('bulk-import');
+            Route::post('bulk-import-preview', 'ProductController@bulk_import_preview')->name('bulk-import-preview');// added preview
             Route::post('bulk-import', 'ProductController@bulk_import_data');
             Route::get('bulk-export', 'ProductController@bulk_export_data')->name('bulk-export');
             Route::get('barcode/{id}', 'ProductController@barcode')->name('barcode');

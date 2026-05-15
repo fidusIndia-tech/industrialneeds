@@ -615,7 +615,9 @@ class WebController extends Controller
             $key = explode(' ', $request['name']);
             $product_ids = Product::where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%");
+                    $q->orWhere('name', 'like', "%{$value}%")
+                    ->orWhere('product_code', 'like', "%{$value}%"); // NEW: Search the Part Number!;
+                    
                 }
             })->pluck('id');
 
@@ -766,7 +768,8 @@ class WebController extends Controller
             $key = explode(' ', $request['name']);
             $query = $porduct_data->where(function ($q) use ($key) {
                 foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%");
+                    $q->orWhere('name', 'like', "%{$value}%")
+                    ->orWhere('product_code', 'like', "%{$value}%"); // NEW: Search the Part Number!;
                 }
             });
         }

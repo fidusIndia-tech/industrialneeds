@@ -114,7 +114,8 @@ class ProductManager
 
         $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key) {
             foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%");
+                $q->orWhere('name', 'like', "%{$value}%")
+                ->orWhere('product_code', 'like', "%{$value}%");
             }
         })->paginate($limit, ['*'], 'page', $offset);
 
@@ -132,7 +133,8 @@ class ProductManager
 
         $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key) {
             foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%");
+                $q->orWhere('name', 'like', "%{$value}%")
+                ->orWhere('product_code', 'like', "%{$value}%");
             }
         })->paginate($limit, ['*'], 'page', $offset);
 

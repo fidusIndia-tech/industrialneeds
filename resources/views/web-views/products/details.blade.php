@@ -251,6 +251,13 @@
                     <div class="col-lg-7 col-md-8 col-12 mt-md-0 mt-sm-3" style="direction: {{ Session::get('direction') }}">
                         <div class="details">
                             <span class="mb-2" style="font-size: 22px;font-weight:700;">{{$product->name}}</span>
+                            <div class="details">
+    
+    @if($product->product_code)
+        <div class="mb-2" style="font-size: 14px; color: #555;">
+            <strong>Part Number:</strong> {{ $product->product_code }}
+        </div>
+    @endif
                             <div class="d-flex align-items-center mb-2 pro">
                                 <span
                                     class="d-inline-block  align-middle mt-1 {{Session::get('direction') === "rtl" ? 'ml-md-2 ml-sm-0 pl-2' : 'mr-md-2 mr-sm-0 pr-2'}}"

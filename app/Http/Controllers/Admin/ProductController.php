@@ -832,7 +832,13 @@ class ProductController extends BaseController
         $skipped_rows = 0;
         
         // NEW: Added our new URL columns to the allowed-empty list
-        $skip_empty_check = ['youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls']; 
+        $skip_empty_check = ['youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls' , 'product_code']; 
+        $valid_sub_sub_categories = \App\Model\Category::where('position', 2)->pluck('id')->toArray();
+
+        // NEW: Grab all existing part numbers to check for duplicates instantly
+        $existing_skus = \Illuminate\Support\Facades\DB::table('products')->whereNotNull('product_code')->pluck('product_code')->toArray();
+
+        $data = [];
 
         foreach ($collections as $key => $collection) {
             $has_empty_required_field = false;
@@ -846,6 +852,12 @@ class ProductController extends BaseController
             if ($has_empty_required_field) {
                 $skipped_rows++;
                 continue; 
+            }
+            // NEW: The SKU Duplication Checker
+            $current_sku = $collection['product_code'] ?? null;
+            if ($current_sku && in_array((string)$current_sku, $existing_skus)) {
+                $skipped_rows++;
+                continue; // Skip this row entirely because we already sell this part!
             }
 
             if (!in_array($collection['brand_id'], $valid_brands)) {
@@ -880,6 +892,7 @@ class ProductController extends BaseController
 
             array_push($data, [
                 'name' => $collection['name'],
+                'product_code' => $current_sku, // NEW: Map the part number to the database array
                 'slug' => Str::slug($collection['name'], '-') . '-' . Str::random(6),
                 'category_ids' => json_encode($category_ids), 
                 'brand_id' => $collection['brand_id'],

@@ -910,8 +910,7 @@ class WebController extends Controller
 
     public function privacy_policy()
     {
-        $privacy_policy = BusinessSetting::where('type', 'privacy_policy')->first();
-        return view('web-views.privacy-policy', compact('privacy_policy'));
+        return view('web-views.privacy-policy');
     }
 
     public function cancelation()

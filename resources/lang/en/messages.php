@@ -1892,4 +1892,6 @@
   'Brand ID' => 'Brand ID',
   'Stock' => 'Stock',
   'Confirm & Import Products' => 'Confirm & Import Products',
+  'Shipping Policy' => 'Shipping Policy',
+  'Cancellation Policy' => 'Cancellation Policy',
 );

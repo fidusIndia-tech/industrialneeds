@@ -216,11 +216,11 @@
                                 </li>
 								
 								 <li class="widget-list-item"><a class="widget-list-link"
-                                                                href="https://industrialneeds.co/static/shipping-return.php" target="_blank">{{\App\CPU\translate('shipping & Return')}}</a>
+                                                                href="{{route('shipping-policy')}}">{{\App\CPU\translate('shipping & Return')}}</a>
                                 </li>
 								
 								 <li class="widget-list-item"><a class="widget-list-link"
-                                                                href="https://industrialneeds.co/static/cancellation.php" target="_blank">{{\App\CPU\translate('cancellation policy')}}</a>
+                                                                href="{{route('cancelation')}}">{{\App\CPU\translate('cancellation policy')}}</a>
                                 </li>   
                             </ul>
                         </div>
@@ -259,7 +259,7 @@
                                                                     href="{{route('customer.auth.login')}}">{{\App\CPU\translate('address')}}</a>
                                     </li>
 									<li class="widget-list-item"><a class="widget-list-link"
-																	href="https://industrialneeds.co/static/refund.php" target="blank">{{\App\CPU\translate('Refund Policy')}}</a>
+																	href="{{route('refund-policy')}}">{{\App\CPU\translate('Refund Policy')}}</a>
 									</li>
                                     
                                     

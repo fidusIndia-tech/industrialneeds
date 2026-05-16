@@ -914,6 +914,21 @@ class WebController extends Controller
         return view('web-views.privacy-policy', compact('privacy_policy'));
     }
 
+    public function cancelation()
+    {
+        return view('web-views.cancelation');
+    }
+
+    public function refund_policy()
+    {
+        return view('web-views.refund-policy');
+    }
+
+    public function shipping_policy()
+    {
+        return view('web-views.shipping-policy');
+    }
+
     //order Details
 
     public function orderdetails()

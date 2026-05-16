@@ -1894,4 +1894,5 @@
   'Confirm & Import Products' => 'Confirm & Import Products',
   'Shipping Policy' => 'Shipping Policy',
   'Cancellation Policy' => 'Cancellation Policy',
+  'Privacy Policy' => 'Privacy Policy',
 );

@@ -613,11 +613,13 @@ class WebController extends Controller
 
         if ($request['data_from'] == 'search') {
             $key = explode(' ', $request['name']);
-            $product_ids = Product::where(function ($q) use ($key) {
+            $hasProductCode = \Schema::hasColumn('products', 'product_code');
+            $product_ids = Product::where(function ($q) use ($key, $hasProductCode) {
                 foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%")
-                    ->orWhere('product_code', 'like', "%{$value}%"); // NEW: Search the Part Number!;
-                    
+                    $q->orWhere('name', 'like', "%{$value}%");
+                    if ($hasProductCode) {
+                        $q->orWhere('product_code', 'like', "%{$value}%");
+                    }
                 }
             })->pluck('id');
 
@@ -766,10 +768,13 @@ class WebController extends Controller
 
         if ($request['data_from'] == 'search') {
             $key = explode(' ', $request['name']);
-            $query = $porduct_data->where(function ($q) use ($key) {
+            $hasProductCode = \Schema::hasColumn('products', 'product_code');
+            $query = $porduct_data->where(function ($q) use ($key, $hasProductCode) {
                 foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%")
-                    ->orWhere('product_code', 'like', "%{$value}%"); // NEW: Search the Part Number!;
+                    $q->orWhere('name', 'like', "%{$value}%");
+                    if ($hasProductCode) {
+                        $q->orWhere('product_code', 'like', "%{$value}%");
+                    }
                 }
             });
         }
@@ -781,7 +786,6 @@ class WebController extends Controller
         if ($request['sort_by'] == 'latest') {
             $fetched = $query->latest();
         } elseif ($request['sort_by'] == 'low-high') {
-            return "low";
             $fetched = $query->orderBy('unit_price', 'ASC');
         } elseif ($request['sort_by'] == 'high-low') {
             $fetched = $query->orderBy('unit_price', 'DESC');

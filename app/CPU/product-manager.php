@@ -112,10 +112,13 @@ class ProductManager
         /*$key = explode(' ', $name);*/
         $key = [base64_decode($name)];
 
-        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key) {
+        $hasProductCode = \Schema::hasColumn('products', 'product_code');
+        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key, $hasProductCode) {
             foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%")
-                ->orWhere('product_code', 'like', "%{$value}%");
+                $q->orWhere('name', 'like', "%{$value}%");
+                if ($hasProductCode) {
+                    $q->orWhere('product_code', 'like', "%{$value}%");
+                }
             }
         })->paginate($limit, ['*'], 'page', $offset);
 
@@ -131,10 +134,13 @@ class ProductManager
         /*$key = explode(' ', $name);*/
         $key = explode(' ', $name);
 
-        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key) {
+        $hasProductCode = \Schema::hasColumn('products', 'product_code');
+        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key, $hasProductCode) {
             foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%")
-                ->orWhere('product_code', 'like', "%{$value}%");
+                $q->orWhere('name', 'like', "%{$value}%");
+                if ($hasProductCode) {
+                    $q->orWhere('product_code', 'like', "%{$value}%");
+                }
             }
         })->paginate($limit, ['*'], 'page', $offset);
 

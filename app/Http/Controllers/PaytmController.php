@@ -9,6 +9,7 @@ use App\Model\Order;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class PaytmController extends Controller
 {
@@ -295,8 +296,10 @@ class PaytmController extends Controller
         $paramList = array();
         $ORDER_ID = $order_id;
         $CUST_ID = $user['id'];
-        $INDUSTRY_TYPE_ID = $request["INDUSTRY_TYPE_ID"];
-        $CHANNEL_ID = $request["CHANNEL_ID"];
+        // Paytm legacy flow expects these every request. Default to the standard
+        // web/Retail pair when the upstream link omits them, instead of sending nulls.
+        $INDUSTRY_TYPE_ID = $request["INDUSTRY_TYPE_ID"] ?? 'Retail';
+        $CHANNEL_ID       = $request["CHANNEL_ID"]       ?? 'WEB';
         $TXN_AMOUNT = round($value, 2);
 
         // Create an array having all required parameters for creating checksum.
@@ -316,6 +319,26 @@ class PaytmController extends Controller
 
         //Here checksum string will return by getChecksumFromArray() function.
         $checkSum = $this->getChecksumFromArray($paramList, Config::get('config_paytm.PAYTM_MERCHANT_KEY'));
+
+        // Debug-level so it's silent in prod unless LOG_LEVEL=debug. PII (email, phone,
+        // customer id) is intentionally NOT logged.
+        $gatewayUrl = Config::get('config_paytm.PAYTM_TXN_URL');
+        $merchantKey = Config::get('config_paytm.PAYTM_MERCHANT_KEY');
+        Log::debug('[Paytm] payment() preparing redirect form', [
+            'normalized_environment' => Config::get('config_paytm.PAYTM_ENVIRONMENT'),
+            'gateway_url' => $gatewayUrl,
+            'gateway_url_blank' => empty($gatewayUrl),
+            'mid_present' => !empty($paramList['MID']),
+            'website' => $paramList['WEBSITE'] ?? null,
+            'channel_id' => $paramList['CHANNEL_ID'] ?? null,
+            'industry_type_id' => $paramList['INDUSTRY_TYPE_ID'] ?? null,
+            'order_id' => $paramList['ORDER_ID'] ?? null,
+            'txn_amount' => $paramList['TXN_AMOUNT'] ?? null,
+            'merchant_key_present' => !empty($merchantKey),
+            'checksum_generated' => !empty($checkSum),
+            'param_fields' => array_keys($paramList),
+        ]);
+
         return view('paytm-payment-view', compact('checkSum', 'paramList'));
     }
 

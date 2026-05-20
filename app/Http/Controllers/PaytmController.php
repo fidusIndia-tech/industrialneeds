@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\CPU\CartManager;
 use App\CPU\Helpers;
 use App\CPU\OrderManager;
-use App\Model\Order;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class PaytmController extends Controller
 {
@@ -288,13 +288,15 @@ class PaytmController extends Controller
     //payment functions
     public function payment(Request $request)
     {
-        $order_id = Order::orderBy('id', 'DESC')->first()->id ?? 100001;
+        // Paytm rejects duplicate ORDER_IDs for the same MID. Previously this used
+        // the latest existing Order.id, which repeated across retries and caused
+        // intermittent "Page not found" / silent failures. Generate a fresh ID per attempt.
+        $ORDER_ID = 'INO' . time() . strtoupper(Str::random(4));
         $discount = session()->has('coupon_discount') ? session('coupon_discount') : 0;
         $value = CartManager::cart_grand_total() - $discount;
         $user = Helpers::get_customer();
 
         $paramList = array();
-        $ORDER_ID = $order_id;
         $CUST_ID = $user['id'];
         // Paytm legacy flow expects these every request. Default to the standard
         // web/Retail pair when the upstream link omits them, instead of sending nulls.
@@ -339,48 +341,125 @@ class PaytmController extends Controller
             'param_fields' => array_keys($paramList),
         ]);
 
+        // Stash for the callback so we can cross-check what Paytm reports
+        // against what we actually requested.
+        session()->put('paytm_order_id', $ORDER_ID);
+        session()->put('paytm_txn_amount', $TXN_AMOUNT);
+
         return view('paytm-payment-view', compact('checkSum', 'paramList'));
     }
 
     public function callback(Request $request)
     {
         $paramList = $_POST;
-        $paytmChecksum = isset($_POST["CHECKSUMHASH"]) ? $_POST["CHECKSUMHASH"] : ""; //Sent by Paytm pg
+        $paytmChecksum = $_POST["CHECKSUMHASH"] ?? "";
+        $merchantKey = Config::get('config_paytm.PAYTM_MERCHANT_KEY');
 
-        //Verify all parameters received from Paytm pg to your application. Like MID received from paytm pg is same as your application’s MID, TXN_AMOUNT and ORDER_ID are same as what was sent by you to Paytm PG for initiating transaction etc.
-        $isValidChecksum = $this->verifychecksum_e($paramList, Config::get('config_paytm.PAYTM_MERCHANT_KEY'), $paytmChecksum); //will return TRUE or FALSE string.
+        $isValidChecksum = $this->verifychecksum_e($paramList, $merchantKey, $paytmChecksum);
 
-        if ($isValidChecksum == "TRUE") {
-            if ($request["STATUS"] == "TXN_SUCCESS") {
-                $unique_id = OrderManager::gen_unique_id();
-                $order_ids = [];
-                foreach (CartManager::get_cart_group_ids() as $group_id) {
-                    $data = [
-                        'payment_method' => 'paytm',
-                        'order_status' => 'confirmed',
-                        'payment_status' => 'paid',
-                        'transaction_ref' => 'trx_' . $unique_id,
-                        'order_group_id' => $unique_id,
-                        'cart_group_id' => $group_id
-                    ];
-                    $order_id = OrderManager::generate_order($data);
-                    array_push($order_ids, $order_id);
-                }
+        // Diagnostic fields. No key, no PII beyond what Paytm itself echoes back.
+        $diagnostic = [
+            'response_order_id' => $paramList['ORDERID'] ?? null,
+            'response_status' => $paramList['STATUS'] ?? null,
+            'response_respcode' => $paramList['RESPCODE'] ?? null,
+            'response_respmsg' => $paramList['RESPMSG'] ?? null,
+            'response_txn_amount' => $paramList['TXNAMOUNT'] ?? null,
+            'response_bank_txn_id' => $paramList['BANKTXNID'] ?? null,
+            'response_txn_id' => $paramList['TXNID'] ?? null,
+            'checksum_valid' => $isValidChecksum,
+            'session_order_id' => session('paytm_order_id'),
+            'session_txn_amount' => session('paytm_txn_amount'),
+        ];
 
-                if (session()->has('payment_mode') && session('payment_mode') == 'app') {
-                    CartManager::cart_clean();
-                    return redirect()->route('payment-success');
-                } else {
-                    CartManager::cart_clean();
-                    return view('web-views.checkout-complete');
-                }
-            }
+        if ($isValidChecksum !== "TRUE") {
+            Log::warning('[Paytm] callback rejected: invalid checksum', $diagnostic);
+            return $this->paymentFailureResponse();
         }
 
+        // ORDER_ID echoed by Paytm must match what we sent in this session.
+        // Prevents replay / cross-session confusion.
+        if (!empty($diagnostic['session_order_id'])
+            && !empty($diagnostic['response_order_id'])
+            && $diagnostic['session_order_id'] !== $diagnostic['response_order_id']) {
+            Log::warning('[Paytm] callback rejected: ORDERID does not match session', $diagnostic);
+            return $this->paymentFailureResponse();
+        }
+
+        // Paytm best practice: don't trust the browser-redirected POST status.
+        // Re-verify server-to-server via the Status Query API before granting the order.
+        $statusResp = $this->verifyTxnStatus($paramList['ORDERID'] ?? '', $merchantKey);
+        $diagnostic['status_api_status'] = $statusResp['STATUS'] ?? null;
+        $diagnostic['status_api_respcode'] = $statusResp['RESPCODE'] ?? null;
+        $diagnostic['status_api_respmsg'] = $statusResp['RESPMSG'] ?? null;
+        $diagnostic['status_api_order_id'] = $statusResp['ORDERID'] ?? null;
+        $diagnostic['status_api_txn_amount'] = $statusResp['TXNAMOUNT'] ?? null;
+
+        $serverConfirmedSuccess = is_array($statusResp)
+            && (($statusResp['STATUS'] ?? '') === 'TXN_SUCCESS')
+            && (($statusResp['ORDERID'] ?? '') === ($paramList['ORDERID'] ?? ''));
+
+        if (!$serverConfirmedSuccess) {
+            Log::warning('[Paytm] callback rejected: Status API did not confirm success', $diagnostic);
+            return $this->paymentFailureResponse();
+        }
+
+        Log::info('[Paytm] callback accepted', $diagnostic);
+
+        $unique_id = OrderManager::gen_unique_id();
+        $paytmTxnId = $paramList['TXNID'] ?? ($paramList['ORDERID'] ?? $unique_id);
+        $order_ids = [];
+        foreach (CartManager::get_cart_group_ids() as $group_id) {
+            $data = [
+                'payment_method' => 'paytm',
+                'order_status' => 'confirmed',
+                'payment_status' => 'paid',
+                'transaction_ref' => 'paytm_' . $paytmTxnId,
+                'order_group_id' => $unique_id,
+                'cart_group_id' => $group_id,
+            ];
+            $order_ids[] = OrderManager::generate_order($data);
+        }
+
+        session()->forget(['paytm_order_id', 'paytm_txn_amount']);
+        CartManager::cart_clean();
+
+        if (session()->has('payment_mode') && session('payment_mode') == 'app') {
+            return redirect()->route('payment-success');
+        }
+        return view('web-views.checkout-complete');
+    }
+
+    private function paymentFailureResponse()
+    {
         if (session()->has('payment_mode') && session('payment_mode') == 'app') {
             return redirect()->route('payment-fail');
         }
         Toastr::error('Payment process failed!');
         return back();
+    }
+
+    private function verifyTxnStatus(string $orderId, string $merchantKey): ?array
+    {
+        if ($orderId === '' || empty($merchantKey)) {
+            return null;
+        }
+        $url = Config::get('config_paytm.PAYTM_STATUS_QUERY_NEW_URL');
+        if (empty($url)) {
+            return null;
+        }
+        $payload = [
+            'MID' => Config::get('config_paytm.PAYTM_MERCHANT_MID'),
+            'ORDERID' => $orderId,
+        ];
+        $payload['CHECKSUMHASH'] = $this->getChecksumFromArray($payload, $merchantKey);
+        try {
+            return $this->callNewAPI($url, $payload);
+        } catch (\Throwable $e) {
+            Log::warning('[Paytm] Status Query API call failed: '.$e->getMessage(), [
+                'order_id' => $orderId,
+                'status_url' => $url,
+            ]);
+            return null;
+        }
     }
 }

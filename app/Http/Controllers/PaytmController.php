@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\CPU\BackEndHelper;
 use App\CPU\CartManager;
 use App\CPU\Helpers;
 use App\CPU\OrderManager;
@@ -34,8 +35,22 @@ class PaytmController extends Controller
 
         $orderId  = 'INO' . time() . strtoupper(Str::random(4));
         $discount = session()->has('coupon_discount') ? session('coupon_discount') : 0;
-        $amount   = round(CartManager::cart_grand_total() - $discount, 2);
-        $user     = Helpers::get_customer();
+        // cart_grand_total() returns the base/USD amount in multi-currency mode.
+        // Paytm only accepts INR and must receive what the checkout shows the user.
+        // Run through usd_to_currency() (which is a no-op for single-currency mode)
+        // so Paytm sees the same value as the checkout total.
+        $rawAmount = round(CartManager::cart_grand_total() - $discount, 2);
+        $amount    = round(BackEndHelper::usd_to_currency($rawAmount), 2);
+        $user      = Helpers::get_customer();
+
+        Log::debug('[Paytm] amount check', [
+            'raw_order_amount'        => $rawAmount,
+            'displayed_checkout_total'=> $amount,
+            'paytm_txn_amount'        => $amount,
+            'currency_code'           => 'INR',
+            'exchange_rate'           => $rawAmount > 0 ? round($amount / $rawAmount, 6) : null,
+            'currency_model'          => Helpers::get_business_settings('currency_model'),
+        ]);
 
         $body = [
             'requestType' => 'Payment',

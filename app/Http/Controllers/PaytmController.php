@@ -54,7 +54,11 @@ class PaytmController extends Controller
             ],
         ];
 
-        $signature = PaytmChecksum::generateSignature(json_encode($body), $merchantKey);
+        // Paytm's other SDKs (Java, Node) encode JSON with unescaped slashes. PHP's
+        // default escapes "/" as "\/", so the bytes we sign would differ from the bytes
+        // Paytm verifies → "System Error" 501. Match their canonical encoding.
+        $bodyJson  = json_encode($body, JSON_UNESCAPED_SLASHES);
+        $signature = PaytmChecksum::generateSignature($bodyJson, $merchantKey);
         $payload   = ['body' => $body, 'head' => ['signature' => $signature]];
 
         $endpoint = $initiateUrl . '?mid=' . urlencode($mid) . '&orderId=' . urlencode($orderId);
@@ -188,14 +192,14 @@ class PaytmController extends Controller
             return null;
         }
         $body      = ['mid' => $mid, 'orderId' => $orderId];
-        $signature = PaytmChecksum::generateSignature(json_encode($body), $merchantKey);
+        $signature = PaytmChecksum::generateSignature(json_encode($body, JSON_UNESCAPED_SLASHES), $merchantKey);
         $payload   = ['body' => $body, 'head' => ['signature' => $signature]];
         return $this->postJson($url, $payload);
     }
 
     private function postJson(string $url, array $payload): array
     {
-        $json = json_encode($payload);
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,

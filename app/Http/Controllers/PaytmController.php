@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\CPU\CartManager;
 use App\CPU\Helpers;
 use App\CPU\OrderManager;
+use App\Library\PaytmChecksum;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -13,371 +14,116 @@ use Illuminate\Support\Str;
 
 class PaytmController extends Controller
 {
-    function encrypt_e($input, $ky)
-    {
-        $key = html_entity_decode($ky);
-        $iv = "@@@@&&&&####$$$$";
-        $data = openssl_encrypt($input, "AES-128-CBC", $key, 0, $iv);
-        return $data;
-    }
-
-    function decrypt_e($crypt, $ky)
-    {
-        $key = html_entity_decode($ky);
-        $iv = "@@@@&&&&####$$$$";
-        $data = openssl_decrypt($crypt, "AES-128-CBC", $key, 0, $iv);
-        return $data;
-    }
-
-    function generateSalt_e($length)
-    {
-        $random = "";
-        srand((double)microtime() * 1000000);
-
-        $data = "AbcDE123IJKLMN67QRSTUVWXYZ";
-        $data .= "aBCdefghijklmn123opq45rs67tuv89wxyz";
-        $data .= "0FGH45OP89";
-
-        for ($i = 0; $i < $length; $i++) {
-            $random .= substr($data, (rand() % (strlen($data))), 1);
-        }
-
-        return $random;
-    }
-
-    function checkString_e($value)
-    {
-        if ($value == 'null')
-            $value = '';
-        return $value;
-    }
-
-    function getChecksumFromArray($arrayList, $key, $sort = 1)
-    {
-        if ($sort != 0) {
-            ksort($arrayList);
-        }
-        $str = $this->getArray2Str($arrayList);
-        $salt = $this->generateSalt_e(4);
-        $finalString = $str . "|" . $salt;
-        $hash = hash("sha256", $finalString);
-        $hashString = $hash . $salt;
-        $checksum = $this->encrypt_e($hashString, $key);
-        return $checksum;
-    }
-
-    function getChecksumFromString($str, $key)
-    {
-
-        $salt = $this->generateSalt_e(4);
-        $finalString = $str . "|" . $salt;
-        $hash = hash("sha256", $finalString);
-        $hashString = $hash . $salt;
-        $checksum = $this->encrypt_e($hashString, $key);
-        return $checksum;
-    }
-
-    function verifychecksum_e($arrayList, $key, $checksumvalue)
-    {
-        $arrayList = $this->removeCheckSumParam($arrayList);
-        ksort($arrayList);
-        $str = $this->getArray2StrForVerify($arrayList);
-        $paytm_hash = $this->decrypt_e($checksumvalue, $key);
-        $salt = substr($paytm_hash, -4);
-
-        $finalString = $str . "|" . $salt;
-
-        $website_hash = hash("sha256", $finalString);
-        $website_hash .= $salt;
-
-        $validFlag = "FALSE";
-        if ($website_hash == $paytm_hash) {
-            $validFlag = "TRUE";
-        } else {
-            $validFlag = "FALSE";
-        }
-        return $validFlag;
-    }
-
-    function verifychecksum_eFromStr($str, $key, $checksumvalue)
-    {
-        $paytm_hash = $this->decrypt_e($checksumvalue, $key);
-        $salt = substr($paytm_hash, -4);
-
-        $finalString = $str . "|" . $salt;
-
-        $website_hash = hash("sha256", $finalString);
-        $website_hash .= $salt;
-
-        $validFlag = "FALSE";
-        if ($website_hash == $paytm_hash) {
-            $validFlag = "TRUE";
-        } else {
-            $validFlag = "FALSE";
-        }
-        return $validFlag;
-    }
-
-    function getArray2Str($arrayList)
-    {
-        $findme = 'REFUND';
-        $findmepipe = '|';
-        $paramStr = "";
-        $flag = 1;
-        foreach ($arrayList as $key => $value) {
-            $pos = strpos($value, $findme);
-            $pospipe = strpos($value, $findmepipe);
-            if ($pos !== false || $pospipe !== false) {
-                continue;
-            }
-
-            if ($flag) {
-                $paramStr .= $this->checkString_e($value);
-                $flag = 0;
-            } else {
-                $paramStr .= "|" . $this->checkString_e($value);
-            }
-        }
-        return $paramStr;
-    }
-
-    function getArray2StrForVerify($arrayList)
-    {
-        $paramStr = "";
-        $flag = 1;
-        foreach ($arrayList as $key => $value) {
-            if ($flag) {
-                $paramStr .= $this->checkString_e($value);
-                $flag = 0;
-            } else {
-                $paramStr .= "|" . $this->checkString_e($value);
-            }
-        }
-        return $paramStr;
-    }
-
-    function redirect2PG($paramList, $key)
-    {
-        $hashString = $this->getchecksumFromArray($paramList);
-        $checksum = $this->encrypt_e($hashString, $key);
-    }
-
-    function removeCheckSumParam($arrayList)
-    {
-        if (isset($arrayList["CHECKSUMHASH"])) {
-            unset($arrayList["CHECKSUMHASH"]);
-        }
-        return $arrayList;
-    }
-
-    function getTxnStatus($requestParamList)
-    {
-        return $this->callAPI("PAYTM_STATUS_QUERY_URL", $requestParamList);
-    }
-
-    function getTxnStatusNew($requestParamList)
-    {
-        return $this->callNewAPI("PAYTM_STATUS_QUERY_NEW_URL", $requestParamList);
-    }
-
-    function initiateTxnRefund($requestParamList)
-    {
-        $CHECKSUM = $this->getRefundChecksumFromArray($requestParamList, "PAYTM_MERCHANT_KEY", 0);
-        $requestParamList["CHECKSUM"] = $CHECKSUM;
-        return $this->callAPI("PAYTM_REFUND_URL", $requestParamList);
-    }
-
-    function callAPI($apiURL, $requestParamList)
-    {
-        $jsonResponse = "";
-        $responseParamList = array();
-        $JsonData = json_encode($requestParamList);
-        $postData = 'JsonData=' . urlencode($JsonData);
-        $ch = curl_init($apiURL);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($postData))
-        );
-        $jsonResponse = curl_exec($ch);
-        $responseParamList = json_decode($jsonResponse, true);
-        return $responseParamList;
-    }
-
-    function callNewAPI($apiURL, $requestParamList)
-    {
-        $jsonResponse = "";
-        $responseParamList = array();
-        $JsonData = json_encode($requestParamList);
-        $postData = 'JsonData=' . urlencode($JsonData);
-        $ch = curl_init($apiURL);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                'Content-Type: application/json',
-                'Content-Length: ' . strlen($postData))
-        );
-        $jsonResponse = curl_exec($ch);
-        $responseParamList = json_decode($jsonResponse, true);
-        return $responseParamList;
-    }
-
-    function getRefundChecksumFromArray($arrayList, $key, $sort = 1)
-    {
-        if ($sort != 0) {
-            ksort($arrayList);
-        }
-        $str = $this->getRefundArray2Str($arrayList);
-        $salt = $this->generateSalt_e(4);
-        $finalString = $str . "|" . $salt;
-        $hash = hash("sha256", $finalString);
-        $hashString = $hash . $salt;
-        $checksum = $this->encrypt_e($hashString, $key);
-        return $checksum;
-    }
-
-    function getRefundArray2Str($arrayList)
-    {
-        $findmepipe = '|';
-        $paramStr = "";
-        $flag = 1;
-        foreach ($arrayList as $key => $value) {
-            $pospipe = strpos($value, $findmepipe);
-            if ($pospipe !== false) {
-                continue;
-            }
-
-            if ($flag) {
-                $paramStr .= $this->checkString_e($value);
-                $flag = 0;
-            } else {
-                $paramStr .= "|" . $this->checkString_e($value);
-            }
-        }
-        return $paramStr;
-    }
-
-    function callRefundAPI($refundApiURL, $requestParamList)
-    {
-        $jsonResponse = "";
-        $responseParamList = array();
-        $JsonData = json_encode($requestParamList);
-        $postData = 'JsonData=' . urlencode($JsonData);
-        $ch = curl_init($refundApiURL);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        curl_setopt($ch, CURLOPT_URL, $refundApiURL);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $headers = array();
-        $headers[] = 'Content-Type: application/json';
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        $jsonResponse = curl_exec($ch);
-        $responseParamList = json_decode($jsonResponse, true);
-        return $responseParamList;
-    }
-
-    //payment functions
     public function payment(Request $request)
     {
-        // Paytm rejects duplicate ORDER_IDs for the same MID. Previously this used
-        // the latest existing Order.id, which repeated across retries and caused
-        // intermittent "Page not found" / silent failures. Generate a fresh ID per attempt.
-        $ORDER_ID = 'INO' . time() . strtoupper(Str::random(4));
+        $merchantKey = (string) Config::get('config_paytm.PAYTM_MERCHANT_KEY');
+        $mid         = (string) Config::get('config_paytm.PAYTM_MERCHANT_MID');
+        $website     = (string) Config::get('config_paytm.PAYTM_MERCHANT_WEBSITE');
+        $initiateUrl = (string) Config::get('config_paytm.PAYTM_INITIATE_TXN_URL');
+        $showPayUrl  = (string) Config::get('config_paytm.PAYTM_SHOW_PAYMENT_URL');
+
+        if ($merchantKey === '' || $mid === '' || $initiateUrl === '') {
+            Log::warning('[Paytm] payment() aborted: missing config', [
+                'mid_present'  => $mid !== '',
+                'key_present'  => $merchantKey !== '',
+                'initiate_url' => $initiateUrl,
+            ]);
+            Toastr::error('Paytm is not configured correctly.');
+            return back();
+        }
+
+        $orderId  = 'INO' . time() . strtoupper(Str::random(4));
         $discount = session()->has('coupon_discount') ? session('coupon_discount') : 0;
-        $value = CartManager::cart_grand_total() - $discount;
-        $user = Helpers::get_customer();
+        $amount   = round(CartManager::cart_grand_total() - $discount, 2);
+        $user     = Helpers::get_customer();
 
-        $paramList = array();
-        $CUST_ID = $user['id'];
-        // Paytm legacy flow expects these every request. Default to the standard
-        // web/Retail pair when the upstream link omits them, instead of sending nulls.
-        $INDUSTRY_TYPE_ID = $request["INDUSTRY_TYPE_ID"] ?? 'Retail';
-        $CHANNEL_ID       = $request["CHANNEL_ID"]       ?? 'WEB';
-        $TXN_AMOUNT = round($value, 2);
+        $body = [
+            'requestType' => 'Payment',
+            'mid'         => $mid,
+            'websiteName' => $website,
+            'orderId'     => $orderId,
+            'callbackUrl' => route('paytm-response'),
+            'txnAmount'   => [
+                'value'    => number_format($amount, 2, '.', ''),
+                'currency' => 'INR',
+            ],
+            'userInfo'    => [
+                'custId' => (string) ($user['id'] ?? 'GUEST'),
+                'email'  => (string) ($user['email'] ?? ''),
+                'mobile' => (string) ($user['phone'] ?? ''),
+            ],
+        ];
 
-        // Create an array having all required parameters for creating checksum.
-        $paramList["MID"] = Config::get('config_paytm.PAYTM_MERCHANT_MID');
-        $paramList["ORDER_ID"] = $ORDER_ID;
-        $paramList["CUST_ID"] = $CUST_ID;
-        $paramList["INDUSTRY_TYPE_ID"] = $INDUSTRY_TYPE_ID;
-        $paramList["CHANNEL_ID"] = $CHANNEL_ID;
-        $paramList["TXN_AMOUNT"] = $TXN_AMOUNT;
-        $paramList["WEBSITE"] = Config::get('config_paytm.PAYTM_MERCHANT_WEBSITE');
+        $signature = PaytmChecksum::generateSignature(json_encode($body), $merchantKey);
+        $payload   = ['body' => $body, 'head' => ['signature' => $signature]];
 
-        $paramList["CALLBACK_URL"] = route('paytm-response');
-        $paramList["MSISDN"] = $user['phone']; //Mobile number of customer
-        $paramList["EMAIL"] = $user['email']; //Email ID of customer
-        $paramList["VERIFIED_BY"] = "EMAIL"; //
-        $paramList["IS_USER_VERIFIED"] = "YES"; //
+        $endpoint = $initiateUrl . '?mid=' . urlencode($mid) . '&orderId=' . urlencode($orderId);
+        $response = $this->postJson($endpoint, $payload);
 
-        //Here checksum string will return by getChecksumFromArray() function.
-        $checkSum = $this->getChecksumFromArray($paramList, Config::get('config_paytm.PAYTM_MERCHANT_KEY'));
+        $resultStatus = $response['body']['resultInfo']['resultStatus'] ?? null;
+        $resultCode   = $response['body']['resultInfo']['resultCode']   ?? null;
+        $resultMsg    = $response['body']['resultInfo']['resultMsg']    ?? null;
+        $txnToken     = $response['body']['txnToken']                   ?? null;
 
-        // Debug-level so it's silent in prod unless LOG_LEVEL=debug. PII (email, phone,
-        // customer id) is intentionally NOT logged.
-        $gatewayUrl = Config::get('config_paytm.PAYTM_TXN_URL');
-        $merchantKey = Config::get('config_paytm.PAYTM_MERCHANT_KEY');
-        Log::debug('[Paytm] payment() preparing redirect form', [
+        Log::debug('[Paytm] initiateTransaction response', [
             'normalized_environment' => Config::get('config_paytm.PAYTM_ENVIRONMENT'),
-            'gateway_url' => $gatewayUrl,
-            'gateway_url_blank' => empty($gatewayUrl),
-            'mid_present' => !empty($paramList['MID']),
-            'website' => $paramList['WEBSITE'] ?? null,
-            'channel_id' => $paramList['CHANNEL_ID'] ?? null,
-            'industry_type_id' => $paramList['INDUSTRY_TYPE_ID'] ?? null,
-            'order_id' => $paramList['ORDER_ID'] ?? null,
-            'txn_amount' => $paramList['TXN_AMOUNT'] ?? null,
-            'merchant_key_present' => !empty($merchantKey),
-            'checksum_generated' => !empty($checkSum),
-            'param_fields' => array_keys($paramList),
+            'endpoint'      => $initiateUrl,
+            'website'       => $website,
+            'order_id'      => $orderId,
+            'txn_amount'    => $amount,
+            'result_status' => $resultStatus,
+            'result_code'   => $resultCode,
+            'result_msg'    => $resultMsg,
+            'token_present' => !empty($txnToken),
+            'http_error'    => $response['_error'] ?? null,
+            'http_code'     => $response['_http']  ?? null,
         ]);
 
-        // Stash for the callback so we can cross-check what Paytm reports
-        // against what we actually requested.
-        session()->put('paytm_order_id', $ORDER_ID);
-        session()->put('paytm_txn_amount', $TXN_AMOUNT);
+        if ($resultStatus !== 'S' || empty($txnToken)) {
+            Toastr::error('Paytm could not start the payment: ' . ($resultMsg ?: 'unknown error'));
+            return back();
+        }
 
-        return view('paytm-payment-view', compact('checkSum', 'paramList'));
+        session()->put('paytm_order_id', $orderId);
+        session()->put('paytm_txn_amount', $amount);
+
+        $formAction = $showPayUrl . '?mid=' . urlencode($mid) . '&orderId=' . urlencode($orderId);
+
+        return view('paytm-payment-view', [
+            'formAction' => $formAction,
+            'mid'        => $mid,
+            'orderId'    => $orderId,
+            'txnToken'   => $txnToken,
+        ]);
     }
 
     public function callback(Request $request)
     {
-        $paramList = $_POST;
-        $paytmChecksum = $_POST["CHECKSUMHASH"] ?? "";
-        $merchantKey = Config::get('config_paytm.PAYTM_MERCHANT_KEY');
+        $paramList   = $_POST;
+        $merchantKey = (string) Config::get('config_paytm.PAYTM_MERCHANT_KEY');
+        $checksum    = $paramList['CHECKSUMHASH'] ?? '';
 
-        $isValidChecksum = $this->verifychecksum_e($paramList, $merchantKey, $paytmChecksum);
-
-        // Diagnostic fields. No key, no PII beyond what Paytm itself echoes back.
         $diagnostic = [
-            'response_order_id' => $paramList['ORDERID'] ?? null,
-            'response_status' => $paramList['STATUS'] ?? null,
-            'response_respcode' => $paramList['RESPCODE'] ?? null,
-            'response_respmsg' => $paramList['RESPMSG'] ?? null,
+            'response_order_id'   => $paramList['ORDERID']   ?? null,
+            'response_status'     => $paramList['STATUS']    ?? null,
+            'response_respcode'   => $paramList['RESPCODE']  ?? null,
+            'response_respmsg'    => $paramList['RESPMSG']   ?? null,
             'response_txn_amount' => $paramList['TXNAMOUNT'] ?? null,
-            'response_bank_txn_id' => $paramList['BANKTXNID'] ?? null,
-            'response_txn_id' => $paramList['TXNID'] ?? null,
-            'checksum_valid' => $isValidChecksum,
-            'session_order_id' => session('paytm_order_id'),
-            'session_txn_amount' => session('paytm_txn_amount'),
+            'response_txn_id'     => $paramList['TXNID']     ?? null,
+            'response_bank_txn'   => $paramList['BANKTXNID'] ?? null,
+            'session_order_id'    => session('paytm_order_id'),
+            'session_txn_amount'  => session('paytm_txn_amount'),
         ];
 
-        if ($isValidChecksum !== "TRUE") {
+        $isValid = $checksum !== ''
+            && PaytmChecksum::verifySignature($paramList, $merchantKey, $checksum);
+        $diagnostic['checksum_valid'] = $isValid;
+
+        if (!$isValid) {
             Log::warning('[Paytm] callback rejected: invalid checksum', $diagnostic);
             return $this->paymentFailureResponse();
         }
 
-        // ORDER_ID echoed by Paytm must match what we sent in this session.
-        // Prevents replay / cross-session confusion.
         if (!empty($diagnostic['session_order_id'])
             && !empty($diagnostic['response_order_id'])
             && $diagnostic['session_order_id'] !== $diagnostic['response_order_id']) {
@@ -385,45 +131,41 @@ class PaytmController extends Controller
             return $this->paymentFailureResponse();
         }
 
-        // Paytm best practice: don't trust the browser-redirected POST status.
-        // Re-verify server-to-server via the Status Query API before granting the order.
-        $statusResp = $this->verifyTxnStatus($paramList['ORDERID'] ?? '', $merchantKey);
-        $diagnostic['status_api_status'] = $statusResp['STATUS'] ?? null;
-        $diagnostic['status_api_respcode'] = $statusResp['RESPCODE'] ?? null;
-        $diagnostic['status_api_respmsg'] = $statusResp['RESPMSG'] ?? null;
-        $diagnostic['status_api_order_id'] = $statusResp['ORDERID'] ?? null;
-        $diagnostic['status_api_txn_amount'] = $statusResp['TXNAMOUNT'] ?? null;
+        $status = $this->verifyTxnStatusV3((string) ($paramList['ORDERID'] ?? ''), $merchantKey);
+        $diagnostic['status_result_status'] = $status['body']['resultInfo']['resultStatus'] ?? null;
+        $diagnostic['status_result_code']   = $status['body']['resultInfo']['resultCode']   ?? null;
+        $diagnostic['status_result_msg']    = $status['body']['resultInfo']['resultMsg']    ?? null;
+        $diagnostic['status_order_id']      = $status['body']['orderId']                    ?? null;
+        $diagnostic['status_txn_amount']    = $status['body']['txnAmount']                  ?? null;
 
-        $serverConfirmedSuccess = is_array($statusResp)
-            && (($statusResp['STATUS'] ?? '') === 'TXN_SUCCESS')
-            && (($statusResp['ORDERID'] ?? '') === ($paramList['ORDERID'] ?? ''));
+        $serverConfirmed = is_array($status)
+            && (($status['body']['resultInfo']['resultStatus'] ?? '') === 'TXN_SUCCESS')
+            && (($status['body']['orderId'] ?? '') === ($paramList['ORDERID'] ?? ''));
 
-        if (!$serverConfirmedSuccess) {
-            Log::warning('[Paytm] callback rejected: Status API did not confirm success', $diagnostic);
+        if (!$serverConfirmed) {
+            Log::warning('[Paytm] callback rejected: v3/order/status did not confirm success', $diagnostic);
             return $this->paymentFailureResponse();
         }
 
         Log::info('[Paytm] callback accepted', $diagnostic);
 
-        $unique_id = OrderManager::gen_unique_id();
-        $paytmTxnId = $paramList['TXNID'] ?? ($paramList['ORDERID'] ?? $unique_id);
-        $order_ids = [];
-        foreach (CartManager::get_cart_group_ids() as $group_id) {
-            $data = [
-                'payment_method' => 'paytm',
-                'order_status' => 'confirmed',
-                'payment_status' => 'paid',
+        $uniqueId   = OrderManager::gen_unique_id();
+        $paytmTxnId = $paramList['TXNID'] ?? ($paramList['ORDERID'] ?? $uniqueId);
+        foreach (CartManager::get_cart_group_ids() as $groupId) {
+            OrderManager::generate_order([
+                'payment_method'  => 'paytm',
+                'order_status'    => 'confirmed',
+                'payment_status'  => 'paid',
                 'transaction_ref' => 'paytm_' . $paytmTxnId,
-                'order_group_id' => $unique_id,
-                'cart_group_id' => $group_id,
-            ];
-            $order_ids[] = OrderManager::generate_order($data);
+                'order_group_id'  => $uniqueId,
+                'cart_group_id'   => $groupId,
+            ]);
         }
 
         session()->forget(['paytm_order_id', 'paytm_txn_amount']);
         CartManager::cart_clean();
 
-        if (session()->has('payment_mode') && session('payment_mode') == 'app') {
+        if (session()->has('payment_mode') && session('payment_mode') === 'app') {
             return redirect()->route('payment-success');
         }
         return view('web-views.checkout-complete');
@@ -431,35 +173,54 @@ class PaytmController extends Controller
 
     private function paymentFailureResponse()
     {
-        if (session()->has('payment_mode') && session('payment_mode') == 'app') {
+        if (session()->has('payment_mode') && session('payment_mode') === 'app') {
             return redirect()->route('payment-fail');
         }
         Toastr::error('Payment process failed!');
         return back();
     }
 
-    private function verifyTxnStatus(string $orderId, string $merchantKey): ?array
+    private function verifyTxnStatusV3(string $orderId, string $merchantKey): ?array
     {
-        if ($orderId === '' || empty($merchantKey)) {
+        $url = (string) Config::get('config_paytm.PAYTM_STATUS_V3_URL');
+        $mid = (string) Config::get('config_paytm.PAYTM_MERCHANT_MID');
+        if ($orderId === '' || $url === '' || $mid === '' || $merchantKey === '') {
             return null;
         }
-        $url = Config::get('config_paytm.PAYTM_STATUS_QUERY_NEW_URL');
-        if (empty($url)) {
-            return null;
+        $body      = ['mid' => $mid, 'orderId' => $orderId];
+        $signature = PaytmChecksum::generateSignature(json_encode($body), $merchantKey);
+        $payload   = ['body' => $body, 'head' => ['signature' => $signature]];
+        return $this->postJson($url, $payload);
+    }
+
+    private function postJson(string $url, array $payload): array
+    {
+        $json = json_encode($payload);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $json,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'Content-Length: ' . strlen($json),
+            ],
+        ]);
+        $raw  = curl_exec($ch);
+        $err  = curl_error($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($raw === false) {
+            return ['_error' => $err, '_http' => $code];
         }
-        $payload = [
-            'MID' => Config::get('config_paytm.PAYTM_MERCHANT_MID'),
-            'ORDERID' => $orderId,
-        ];
-        $payload['CHECKSUMHASH'] = $this->getChecksumFromArray($payload, $merchantKey);
-        try {
-            return $this->callNewAPI($url, $payload);
-        } catch (\Throwable $e) {
-            Log::warning('[Paytm] Status Query API call failed: '.$e->getMessage(), [
-                'order_id' => $orderId,
-                'status_url' => $url,
-            ]);
-            return null;
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return ['_error' => 'invalid_json', '_http' => $code, '_raw' => substr((string) $raw, 0, 500)];
         }
+        $decoded['_http'] = $code;
+        return $decoded;
     }
 }

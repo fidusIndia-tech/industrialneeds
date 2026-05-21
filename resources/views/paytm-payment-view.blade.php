@@ -5,23 +5,19 @@
     <title>Redirecting to Paytm…</title>
 </head>
 <body>
-@php($paytmAction = \Illuminate\Support\Facades\Config::get('config_paytm.PAYTM_TXN_URL'))
-
 <center>
     <h1>Please do not refresh this page...</h1>
-    @if(empty($paytmAction))
+    @if(empty($formAction) || empty($txnToken))
         <p style="color:#c00;font-weight:bold">
-            Paytm gateway URL is not configured. Check admin → payment methods → Paytm,
-            then run <code>php artisan config:clear</code>.
+            Paytm could not start this payment. Please go back and try again.
         </p>
     @endif
 </center>
 
-<form id="paytmForm" name="paytmForm" method="post" action="{{ $paytmAction }}">
-    @foreach($paramList as $name => $value)
-        <input type="hidden" name="{{ $name }}" value="{{ $value }}">
-    @endforeach
-    <input type="hidden" name="CHECKSUMHASH" value="{{ $checkSum }}">
+<form id="paytmForm" name="paytmForm" method="post" action="{{ $formAction }}">
+    <input type="hidden" name="mid"      value="{{ $mid }}">
+    <input type="hidden" name="orderId"  value="{{ $orderId }}">
+    <input type="hidden" name="txnToken" value="{{ $txnToken }}">
 
     <noscript>
         <center>
@@ -49,7 +45,6 @@
         } catch (e) {
             console.error('[Paytm] auto-submit failed:', e);
         }
-        // Show a manual fallback button after 3 s in case the auto-submit was blocked.
         setTimeout(function () {
             var btn = document.getElementById('paytmManualSubmit');
             if (btn) {

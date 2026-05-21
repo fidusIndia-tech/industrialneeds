@@ -131,13 +131,12 @@ class PaymentConfigProvider extends ServiceProvider
                 $isLive = (strtolower($rawEnv) === 'live' || strtolower($rawEnv) === 'prod' || strtolower($rawEnv) === 'production');
                 $normalizedEnv = $isLive ? 'PROD' : 'STAGE';
 
-                if ($isLive) {
-                    $PAYTM_STATUS_QUERY_NEW_URL = 'https://securegw.paytm.in/merchant-status/getTxnStatus';
-                    $PAYTM_TXN_URL             = 'https://securegw.paytm.in/theia/processTransaction';
-                } else {
-                    $PAYTM_STATUS_QUERY_NEW_URL = 'https://securegw-stage.paytm.in/merchant-status/getTxnStatus';
-                    $PAYTM_TXN_URL             = 'https://securegw-stage.paytm.in/theia/processTransaction';
-                }
+                $base = $isLive ? 'https://securegw.paytm.in' : 'https://securegw-stage.paytm.in';
+                $PAYTM_STATUS_QUERY_NEW_URL = $base . '/merchant-status/getTxnStatus';
+                $PAYTM_TXN_URL              = $base . '/theia/processTransaction';      // legacy form-post (kept for back-compat / refunds)
+                $PAYTM_INITIATE_TXN_URL     = $base . '/theia/api/v1/initiateTransaction';
+                $PAYTM_SHOW_PAYMENT_URL     = $base . '/theia/api/v1/showPaymentPage';
+                $PAYTM_STATUS_V3_URL        = $base . '/v3/order/status';
 
                 // Paytm sandbox (securegw-stage) rejects live WEBSITE values and surfaces it
                 // as a "503 No server available" page. Force a staging WEBSITE in sandbox mode.
@@ -169,6 +168,9 @@ class PaymentConfigProvider extends ServiceProvider
                     'PAYTM_STATUS_QUERY_URL' => env('PAYTM_STATUS_QUERY_URL', $PAYTM_STATUS_QUERY_NEW_URL),
                     'PAYTM_STATUS_QUERY_NEW_URL' => env('PAYTM_STATUS_QUERY_NEW_URL', $PAYTM_STATUS_QUERY_NEW_URL),
                     'PAYTM_TXN_URL' => env('PAYTM_TXN_URL', $PAYTM_TXN_URL),
+                    'PAYTM_INITIATE_TXN_URL' => $PAYTM_INITIATE_TXN_URL,
+                    'PAYTM_SHOW_PAYMENT_URL' => $PAYTM_SHOW_PAYMENT_URL,
+                    'PAYTM_STATUS_V3_URL' => $PAYTM_STATUS_V3_URL,
                 );
 
                 Config::set('config_paytm', $config);

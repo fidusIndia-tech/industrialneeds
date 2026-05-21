@@ -131,7 +131,11 @@ class PaymentConfigProvider extends ServiceProvider
                 $isLive = (strtolower($rawEnv) === 'live' || strtolower($rawEnv) === 'prod' || strtolower($rawEnv) === 'production');
                 $normalizedEnv = $isLive ? 'PROD' : 'STAGE';
 
-                $base = $isLive ? 'https://securegw.paytm.in' : 'https://securegw-stage.paytm.in';
+                // Paytm has two gateway families. Newer merchants (post-2023, PPSL) are
+                // provisioned on secure.paytmpayments.com; older PMSL merchants on
+                // securegw.paytm.in. Wrong host → "System Error" 501 with no detail.
+                // Our merchant is on PPSL.
+                $base = $isLive ? 'https://secure.paytmpayments.com' : 'https://securestage.paytmpayments.com';
                 $PAYTM_STATUS_QUERY_NEW_URL = $base . '/merchant-status/getTxnStatus';
                 $PAYTM_TXN_URL              = $base . '/theia/processTransaction';      // legacy form-post (kept for back-compat / refunds)
                 $PAYTM_INITIATE_TXN_URL     = $base . '/theia/api/v1/initiateTransaction';

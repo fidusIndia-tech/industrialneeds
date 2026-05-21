@@ -148,17 +148,6 @@ class PaymentConfigProvider extends ServiceProvider
                     $paytmWebsite = 'DEFAULT';
                 }
 
-                // Sandbox endpoint with live MID/key fails handshake and Paytm returns
-                // "503 No server available". Warn when MID looks like a live credential
-                // (Paytm sandbox MIDs typically contain "test"/"stag"/"sandbox").
-                $paytmMid = env('PAYTM_MERCHANT_MID', $paytm['paytm_merchant_mid'] ?? '');
-                if (!$isLive && $paytmMid !== '' &&
-                    stripos($paytmMid, 'test') === false &&
-                    stripos($paytmMid, 'stag') === false &&
-                    stripos($paytmMid, 'sandbox') === false) {
-                    Log::warning('[Paytm] Sandbox environment selected but MID does not look like a test credential ('.substr($paytmMid, 0, 6).'***). Verify that sandbox MID and key from the Paytm dashboard are used.');
-                }
-
                 $config = array(
                     'PAYTM_ENVIRONMENT' => $normalizedEnv,
                     'PAYTM_MERCHANT_KEY' => env('PAYTM_MERCHANT_KEY', $paytm['paytm_merchant_key']),

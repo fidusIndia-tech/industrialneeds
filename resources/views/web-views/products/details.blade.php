@@ -199,6 +199,16 @@
     ?>
     <!-- Page Content-->
     <div class="container mt-4 rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
+        <?php $breadcrumb_cat = json_decode($product['category_ids']); ?>
+        <nav class="ind-detail-breadcrumb">
+            <a href="{{route('home')}}">{{\App\CPU\translate('Home')}}</a>
+            <span class="mx-1">/</span>
+            @if(isset($breadcrumb_cat[0]) && isset($breadcrumb_cat[0]->id))
+                <a href="{{route('products',['id'=> $breadcrumb_cat[0]->id,'data_from'=>'category','page'=>1])}}">{{\App\CPU\translate('Products')}}</a>
+                <span class="mx-1">/</span>
+            @endif
+            <span>{{ Str::limit($product->name, 60) }}</span>
+        </nav>
         <!-- General info tab-->
         <div class="row" style="direction: ltr">
             <!-- Product gallery-->
@@ -418,7 +428,7 @@
                                         class="btn element-center btn-gap-{{Session::get('direction') === "rtl" ? 'left' : 'right'}}"
                                         onclick="buy_now()"
                                         type="button"
-                                        style="width:37%; height: 45px; background: #FFA825 !important; color: #ffffff;">
+                                        style="width:37%; height: 45px; background: #FFC400 !important; color: #082A45; font-weight:700;">
                                         <span class="string-limit">{{\App\CPU\translate('buy_now')}}</span>
                                     </button>
                                     <button
@@ -455,7 +465,7 @@
                             <div class="col-12">
                                 <div class=" mt-1">
                                     <!-- Tabs-->
-                                    <ul class="nav nav-tabs d-flex justify-content-center" role="tablist" style="margin-top:35px;">
+                                    <ul class="nav nav-tabs ind-detail-tabs d-flex justify-content-center" role="tablist" style="margin-top:35px;">
                                         <li class="nav-item">
                                             <a class="nav-link active " href="#overview" data-toggle="tab" role="tab"
                                             style="color: black !important;font-weight: 400;font-size: 24px;">

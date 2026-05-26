@@ -18,7 +18,7 @@
          style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="card border-0 box-shadow">
+                <div class="card border-0 box-shadow ind-auth-card">
                     <div class="card-body">
                         <h2 class="h4 mb-1">{{\App\CPU\translate('no_account')}}</h2>
                         <p class="font-size-sm text-muted mb-4">{{\App\CPU\translate('register_control_your_order')}}

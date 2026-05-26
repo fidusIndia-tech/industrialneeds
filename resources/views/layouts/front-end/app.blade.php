@@ -682,6 +682,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             </noscript>
         <!-- End Facebook Pixel Code -->
     @endif
+
+    {{-- Industrial B2B UI redesign overrides — must load LAST to win over inline theme styles --}}
+    <link rel="stylesheet" media="screen" href="{{asset('public/assets/front-end')}}/css/industrial.css">
 </head>
 <!-- Body-->
 <body class="toolbar-enabled">

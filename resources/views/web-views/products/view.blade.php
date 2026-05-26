@@ -201,12 +201,15 @@
 
 @php($decimal_point_settings = \App\CPU\Helpers::get_business_settings('decimal_point_settings'))
     <!-- Page Title-->
-    <div class="d-flex justify-content-center align-items-center mb-3" style="min-height: 70px;background:{{$web_config['primary_color']}}10;width:100%;">
-
-            <div class="row text-capitalize">
-                <span style="font-weight: 600;font-size: 18px;">{{str_replace("_"," ",$data['data_from'])}} {{\App\CPU\translate('products')}} {{ isset($brand_name) ? '('.$brand_name.')' : ''}}</span>
+    <div class="ind-listing-title mb-3" style="width:100%;">
+        <div class="container py-3 text-{{Session::get('direction') === "rtl" ? 'right' : 'left'}}">
+            <div class="ind-breadcrumb mb-1">
+                <a href="{{route('home')}}">{{\App\CPU\translate('Home')}}</a>
+                <span class="mx-1">/</span>
+                <span class="text-capitalize">{{str_replace("_"," ",$data['data_from'])}} {{\App\CPU\translate('products')}}</span>
             </div>
-
+            <span class="ind-listing-title-text text-capitalize">{{str_replace("_"," ",$data['data_from'])}} {{\App\CPU\translate('products')}} {{ isset($brand_name) ? '('.$brand_name.')' : ''}}</span>
+        </div>
     </div>
     <div class="container rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
         <div class="row">
@@ -603,7 +606,7 @@
             <!-- Content  -->
             <section class="col-lg-9">
                 {{-- <div class="col-md-9"> --}}
-                    <div class="row" style="background: white;margin:0px;border-radius:5px;">
+                    <div class="row ind-listing-toolbar" style="margin:0px;">
                         <div class="col-md-6 d-flex  align-items-center">
                             {{-- if need data from also --}}
                             {{-- <h1 class="h3 text-dark mb-0 headerTitle text-uppercase">{{\App\CPU\translate('product_by')}} {{$data['data_from']}} ({{ isset($brand_name) ? $brand_name : $data_from}})</h1> --}}
@@ -653,8 +656,20 @@
                         @include('web-views.products._ajax-products',['products'=>$products,'decimal_point_settings'=>$decimal_point_settings])
                     </div>
                 @else
-                    <div class="text-center pt-5">
-                        <h2>{{\App\CPU\translate('No Product Found')}}</h2>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="ind-empty-state">
+                                <i class="czi-package"></i>
+                                <h2>{{\App\CPU\translate('No Product Found')}}</h2>
+                                <p>{{\App\CPU\translate('We could not find any products matching your selection. Try adjusting the filters or browse all products.')}}</p>
+                                <a href="{{route('products',['data_from'=>'latest','page'=>1])}}" class="btn btn-primary">
+                                    {{\App\CPU\translate('Browse all products')}}
+                                </a>
+                                <a href="{{route('contacts')}}" class="btn btn-outline-accent {{Session::get('direction') === "rtl" ? 'mr-2' : 'ml-2'}}">
+                                    {{\App\CPU\translate('Request a Quote')}}
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 @endif
             </section>

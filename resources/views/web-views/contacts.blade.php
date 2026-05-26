@@ -52,23 +52,57 @@
     </style>
 @endpush
 @section('content')
-    <div class="container rtl">
-        <div class="row">
-            <div class="col-md-12 sidebar_heading text-center mb-2">
-                <h1 class="h3  mb-0 folot-left headerTitle">{{\App\CPU\translate('contact_us')}}</h1>
+    <!-- Page head -->
+    <div class="ind-page-head">
+        <div class="container rtl text-{{Session::get('direction') === "rtl" ? 'right' : 'left'}}">
+            <div class="ind-breadcrumb">
+                <a href="{{route('home')}}">{{\App\CPU\translate('Home')}}</a>
+                <span class="mx-1">/</span>
+                <span>{{\App\CPU\translate('Contact Us')}}</span>
             </div>
+            <h1>{{\App\CPU\translate('Contact Us')}}</h1>
+            <p>{{\App\CPU\translate('Send us your requirements or request a quote — our team responds quickly.')}}</p>
         </div>
     </div>
 
-    <!-- Split section: Map + Contact form-->
-    <div class="container rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
-        <div class="row no-gutters">
-            <div class="col-lg-6 iframe-full-height-wrap ">
-                <img style="" class="for-contac-image" src="{{asset("public/assets/front-end/png/contact.png")}}" alt="">
+    <!-- Split section: Contact info + Contact form-->
+    <div class="container rtl pb-5" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
+        <div class="row">
+            <div class="col-lg-5 mb-4 mb-lg-0">
+                <div class="ind-contact-info">
+                    <div class="ind-contact-intro">
+                        <h3>{{\App\CPU\translate('Get in touch')}}</h3>
+                        <p>{{\App\CPU\translate('Reach us through any of the channels below, or send a message and our team will respond promptly.')}}</p>
+                    </div>
+                    <div class="ind-contact-row">
+                        <div class="ind-contact-ic"><i class="czi-location"></i></div>
+                        <div>
+                            <div class="ind-contact-label">{{\App\CPU\translate('Address')}}</div>
+                            <div class="ind-contact-val">{{\App\CPU\Helpers::get_business_settings('shop_address')}}</div>
+                        </div>
+                    </div>
+                    <div class="ind-contact-row">
+                        <div class="ind-contact-ic"><i class="czi-phone"></i></div>
+                        <div>
+                            <div class="ind-contact-label">{{\App\CPU\translate('Phone')}}</div>
+                            <div class="ind-contact-val">
+                                <a href="tel:{{\App\CPU\Helpers::get_business_settings('company_phone')}}">{{\App\CPU\Helpers::get_business_settings('company_phone')}}</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ind-contact-row">
+                        <div class="ind-contact-ic"><i class="czi-mail"></i></div>
+                        <div>
+                            <div class="ind-contact-label">{{\App\CPU\translate('Email')}}</div>
+                            <div class="ind-contact-val">
+                                <a href="mailto:{{\App\CPU\Helpers::get_business_settings('company_email')}}">{{\App\CPU\Helpers::get_business_settings('company_email')}}</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-lg-6 for-send-message px-4 px-xl-5  box-shadow-sm">
-                <h2 class="h4 mb-4 text-center"
-                    style="color: #030303; font-weight:600;">{{\App\CPU\translate('send_us_a_message')}}</h2>
+            <div class="col-lg-7 ind-contact-form-card for-send-message px-4 px-xl-5">
+                <h2 class="ind-contact-form-title">{{\App\CPU\translate('send_us_a_message')}}</h2>
                     <form action="{{route('contact.store')}}" method="POST" id="getResponse">
                         @csrf
                         <div class="row">
@@ -108,7 +142,7 @@
                              <div class="col-md-12">
                             <div class="form-group">
                               <label for="cf-message">{{\App\CPU\translate('Message')}}</label>
-                              <textarea class="form-control message" name="message"   rows="6" required>{{ old('subject') }}</textarea>
+                              <textarea class="form-control message" name="message"   rows="6" required>{{ old('message') }}</textarea>
                             </div>
                           </div>
                         </div>
@@ -131,8 +165,8 @@
                                 </div>
                             </div>
                         @endif
-                        <div class=" ">
-                          <button class="btn btn-primary" type="submit" >{{\App\CPU\translate('send')}}</button>
+                        <div class="mt-2">
+                          <button class="btn btn-accent px-4" type="submit"><i class="czi-message {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>{{\App\CPU\translate('send')}}</button>
                       </div>
                     </form>
             </div>

@@ -113,10 +113,10 @@
 </style>
 @php($announcement=\App\CPU\Helpers::get_business_settings('announcement'))
 @if (isset($announcement) && $announcement['status']==1)
-    <div class="d-flex justify-content-between align-items-center" id="anouncement" style="background-color: {{ $announcement['color'] }};color:{{$announcement['text_color']}}">
+    <div class="d-flex justify-content-between align-items-center" id="anouncement" style="background-color: #E5E7EB;color:#082A45;border-bottom:1px solid #CBD5E1">
         <span></span>
-        <span style="text-align:center; font-size: 15px;">{{ $announcement['announcement'] }} </span>
-        <span class="ml-3 mr-3" style="font-size: 12px;cursor: pointer;color: darkred"  onclick="myFunction()">X</span>
+        <span style="text-align:center; font-size: 14px;font-weight:500;">{{ $announcement['announcement'] }} </span>
+        <span class="ml-3 mr-3" style="font-size: 13px;cursor: pointer;color: #64748B"  onclick="myFunction()">&times;</span>
     </div>
 @endif
 
@@ -130,35 +130,40 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="topbar">
         <div class="container">
 
-            <div>
-                <div class="topbar-text dropdown d-md-none {{Session::get('direction') === 'rtl' ? 'mr-auto' : 'ml-auto'}}">
-                    <a class="topbar-link" href="tel: {{$web_config['phone']->value}}">
-                        <i class="fa fa-phone"></i> {{$web_config['phone']->value}}
-                    </a>
-                </div>
-                <div class="d-none d-md-block {{Session::get('direction') === 'rtl' ? 'mr-2' : 'ml-2'}} text-nowrap">
-                    <a class="topbar-link d-none d-md-inline-block" href="tel:{{$web_config['phone']->value}}">
-                        <i class="fa fa-phone"></i> {{$web_config['phone']->value}}
-                    </a>
-                </div>
+            <div class="ind-topbar-left">
+                <a class="ind-topbar-item topbar-link" href="tel:{{$web_config['phone']->value}}">
+                    <i class="fa fa-phone"></i>{{$web_config['phone']->value}}
+                </a>
+                <a class="ind-topbar-item topbar-link d-none d-md-inline-block" href="mailto:{{\App\CPU\Helpers::get_business_settings('company_email')}}">
+                    <i class="fa fa-envelope"></i>{{\App\CPU\Helpers::get_business_settings('company_email')}}
+                </a>
+                <a class="ind-topbar-item topbar-link d-none d-lg-inline-block" href="{{route('contacts')}}">
+                    <i class="fa fa-file-text-o"></i>{{\App\CPU\translate('Request a Quotation')}}
+                </a>
             </div>
 
             <div>
                 @php($currency_model = \App\CPU\Helpers::get_business_settings('currency_model'))
                 @if($currency_model=='multi_currency')
-                    <div class="topbar-text dropdown disable-autohide {{Session::get('direction') === 'rtl' ? 'ml-4' : 'mr-4'}}">
-                        <a class="topbar-link dropdown-toggle" href="#" data-toggle="dropdown">
+                    {{-- Self-contained currency selector (vanilla-JS toggle) so it never
+                         hides behind the sticky header / cart. Uses the existing backend
+                         currency_change() (route: currency.change) — no backend changes. --}}
+                    <div class="currency-dropdown topbar-text {{Session::get('direction') === 'rtl' ? 'ml-4' : 'mr-4'}}"
+                         id="currencyDropdown">
+                        <button type="button" class="currency-dropdown-toggle" onclick="toggleCurrencyDropdown(event)">
                             <span>{{session('currency_code')}} {{session('currency_symbol')}}</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-{{Session::get('direction') === 'rtl' ? 'right' : 'left'}}"
-                            style="min-width: 160px!important;text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
+                            <i class="czi-arrow-down"></i>
+                        </button>
+                        <div class="currency-dropdown-menu" role="menu">
                             @foreach (\App\Model\Currency::where('status', 1)->get() as $key => $currency)
-                                <li style="cursor: pointer" class="dropdown-item"
-                                    onclick="currency_change('{{$currency['code']}}')">
-                                    {{ $currency->name }}
-                                </li>
+                                <button type="button" role="menuitem"
+                                        class="{{ session('currency_code')==$currency['code'] ? 'is-selected' : '' }}"
+                                        onclick="currency_change('{{$currency['code']}}')">
+                                    <span class="cur-code">{{ $currency->code }} {{ $currency->symbol }}</span>
+                                    <span class="cur-name">{{ $currency->name }}</span>
+                                </button>
                             @endforeach
-                        </ul>
+                        </div>
                     </div>
                 @endif
 
@@ -224,7 +229,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <form action="{{route('products')}}" type="submit" class="search_form">
                         <input class="form-control appended-form-control search-bar-input" type="text"
                                autocomplete="off"
-                               placeholder="{{\App\CPU\translate('search')}}"
+                               placeholder="{{\App\CPU\translate('Search products, brands, categories…')}}"
                                name="name">
                         <button class="input-group-append-overlay search_button" type="submit"
                                 style="border-radius: {{Session::get('direction') === 'rtl' ? '7px 0px 0px 7px; right: unset; left: 0' : '0px 7px 7px 0px; left: unset; right: 0'}};top:0">
@@ -308,6 +313,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             </div>
                         </div>
                     @endif
+                    <a href="{{route('contacts')}}"
+                       class="btn btn-accent btn-sm d-none d-lg-inline-flex align-items-center {{Session::get('direction') === 'rtl' ? 'mr-3' : 'ml-3'}}"
+                       style="font-weight:600;border-radius:6px;padding:.5rem .9rem;white-space:nowrap;">
+                        <i class="czi-message {{Session::get('direction') === 'rtl' ? 'ml-1' : 'mr-1'}}"></i>{{\App\CPU\translate('Get a Quote')}}
+                    </a>
                     <div id="cart_items">
                         @include('layouts.front-end.partials.cart')
                     </div>
@@ -324,7 +334,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <form action="{{route('products')}}" type="submit" class="search_form">
                             <input class="form-control appended-form-control search-bar-input-mobile" type="text"
                                    autocomplete="off"
-                                   placeholder="{{\App\CPU\translate('search')}}" name="name">
+                                   placeholder="{{\App\CPU\translate('Search products, brands, categories…')}}" name="name">
                             <input name="data_from" value="search" hidden>
                             <input name="page" value="1" hidden>
                             <button class="input-group-append-overlay search_button" type="submit"
@@ -593,12 +603,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </li>
                         @php($discount_product = App\Model\Product::with(['reviews'])->active()->where('discount', '!=', 0)->count())
                         @if ($discount_product>0)
-                            <li class="nav-item dropdown {{request()->is('/')?'active':''}}">
+                            <li class="nav-item dropdown {{ (request()->routeIs('products') && request('data_from')=='discounted') ? 'active' : '' }}">
                                 <a class="nav-link text-capitalize" href="{{route('products',['data_from'=>'discounted','page'=>1])}}">{{ \App\CPU\translate('discounted_products')}}</a>
                             </li>
                         @endif
-					 <li class="nav-item dropdown {{request()->is('/')?'active':''}}">
+					 <li class="nav-item dropdown {{ request()->routeIs('customer-feedback') ? 'active' : '' }}">
                                 <a class="nav-link" href="{{route('customer-feedback')}}">{{ \App\CPU\translate('customer_feedback')}}</a>
+                      </li>
+                      <li class="nav-item dropdown {{request()->routeIs('contacts')?'active':''}}">
+                                <a class="nav-link" href="{{route('contacts')}}">{{ \App\CPU\translate('Contact')}}</a>
                       </li>
                      <?php /* 
                         @php($business_mode=\App\CPU\Helpers::get_business_settings('business_mode'))
@@ -642,4 +655,22 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 function myFunction() {
   $('#anouncement').addClass('d-none').removeClass('d-flex')
 }
+
+/* Currency dropdown — vanilla JS toggle (independent of Bootstrap) */
+function toggleCurrencyDropdown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var el = document.getElementById('currencyDropdown');
+    if (el) { el.classList.toggle('open'); }
+}
+document.addEventListener('click', function (e) {
+    var el = document.getElementById('currencyDropdown');
+    if (el && !el.contains(e.target)) { el.classList.remove('open'); }
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        var el = document.getElementById('currencyDropdown');
+        if (el) { el.classList.remove('open'); }
+    }
+});
 </script>

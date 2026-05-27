@@ -1998,4 +1998,5 @@
   'Delivery time and return eligibility may vary by product. Contact support for confirmation.' => 'Delivery Time And Return Eligibility May Vary By Product. Contact Support For Confirmation.',
   'Request a Quote / Inquire' => 'Request A Quote / Inquire',
   'Part No' => 'Part No',
+  'Chat on WhatsApp' => 'Chat On WhatsApp',
 );

@@ -196,6 +196,56 @@
     $overallRating = \App\CPU\ProductManager::get_overall_rating($product->reviews);
     $rating = \App\CPU\ProductManager::get_rating($product->reviews);
     $decimal_point_settings = \App\CPU\Helpers::get_business_settings('decimal_point_settings');
+
+    // --- Product detail fallback data (safe, dynamic only) ---
+    $detail_brand_name = $product->brand->name ?? null;
+    $detail_category_name = null;
+    $detail_cats = json_decode($product['category_ids']);
+    if (isset($detail_cats[0]) && isset($detail_cats[0]->id)) {
+        $detail_category = \App\Model\Category::find($detail_cats[0]->id);
+        $detail_category_name = $detail_category->name ?? null;
+    }
+    $detail_has_description = trim(strip_tags((string) ($product['details'] ?? ''))) !== '';
+    $detail_review_count = count($product->reviews);
+
+    // Build the professional fallback overview from available dynamic data only.
+    $detail_fallback = '<strong>' . e($product->name) . '</strong>';
+    if ($detail_brand_name) {
+        $detail_fallback .= ' ' . \App\CPU\translate('is an industrial product from') . ' <strong>' . e($detail_brand_name) . '</strong>';
+    } else {
+        $detail_fallback .= ' ' . \App\CPU\translate('is an industrial product');
+    }
+    if ($detail_category_name) {
+        $detail_fallback .= ', ' . \App\CPU\translate('listed under') . ' <strong>' . e($detail_category_name) . '</strong>';
+    }
+    if ($product->product_code) {
+        $detail_fallback .= ' (' . \App\CPU\translate('Part No.') . ' ' . e($product->product_code) . ')';
+    }
+    $detail_fallback .= '. ' . \App\CPU\translate('It is available through FIAPL for B2B procurement, industrial maintenance, automation, electrical, and MRO sourcing requirements. For technical specifications, availability, and bulk pricing, customers can request a quotation.');
+
+    // Build a technical-specs table from genuinely-available structured data only (no invented specs).
+    $detail_specs = [];
+    if (!empty($product->product_code)) {
+        $detail_specs[\App\CPU\translate('Part Number')] = $product->product_code;
+    }
+    if ($detail_brand_name) {
+        $detail_specs[\App\CPU\translate('Brand')] = $detail_brand_name;
+    }
+    if (!empty($product->unit)) {
+        $detail_specs[\App\CPU\translate('Unit')] = $product->unit;
+    }
+    if (!empty($product->minimum_order_qty) && $product->minimum_order_qty > 0) {
+        $detail_specs[\App\CPU\translate('Minimum Order Quantity')] = $product->minimum_order_qty;
+    }
+    $detail_choices = json_decode($product->choice_options);
+    if (is_array($detail_choices)) {
+        foreach ($detail_choices as $detail_choice) {
+            if (isset($detail_choice->title) && !empty($detail_choice->options)) {
+                $detail_specs[$detail_choice->title] = implode(', ', $detail_choice->options);
+            }
+        }
+    }
+    $detail_has_specs = count($detail_specs) > 0;
     ?>
     <!-- Page Content-->
     <div class="container mt-4 rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
@@ -210,11 +260,10 @@
             <span>{{ Str::limit($product->name, 60) }}</span>
         </nav>
         <!-- General info tab-->
-        <div class="row" style="direction: ltr">
-            <!-- Product gallery-->
-            <div class="col-md-9 col-12">
-                <div class="row">
-                    <div class="col-lg-5 col-md-4 col-12">
+        <div class="row ind-top-row" style="direction: ltr">
+            <!-- LEFT: Product image gallery -->
+            <div class="col-lg-4 col-md-5 col-12 ind-col-image">
+                        <div class="ind-gallery-card">
                         <div class="cz-product-gallery">
                             <div class="cz-preview">
                                 @if($product->images!=null)
@@ -256,19 +305,34 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- Product details-->
-                    <div class="col-lg-7 col-md-8 col-12 mt-md-0 mt-sm-3" style="direction: {{ Session::get('direction') }}">
-                        <div class="details">
-                            <span class="mb-2" style="font-size: 22px;font-weight:700;">{{$product->name}}</span>
-                            <div class="details">
-    
-    @if($product->product_code)
-        <div class="mb-2" style="font-size: 14px; color: #555;">
-            <strong>Part Number:</strong> {{ $product->product_code }}
-        </div>
-    @endif
-                            <div class="d-flex align-items-center mb-2 pro">
+                        </div>
+                        <!-- Trust / assurance badges under the image -->
+                        <div class="ind-assurance">
+                            <div class="ind-assurance-item">
+                                <img src="{{asset('public/assets/front-end/png/Payment.png')}}" alt="">
+                                <span>{{\App\CPU\translate('Safe Payment')}}</span>
+                            </div>
+                            <div class="ind-assurance-item">
+                                <img src="{{asset('public/assets/front-end/png/money.png')}}" alt="">
+                                <span>{{\App\CPU\translate('7 Days Return Policy')}}</span>
+                            </div>
+                            <div class="ind-assurance-item">
+                                <img src="{{asset('public/assets/front-end/png/Genuine.png')}}" alt="">
+                                <span>{{\App\CPU\translate('100% Authentic Products')}}</span>
+                            </div>
+                        </div>
+            </div>
+            <!-- MIDDLE: Product information -->
+            <div class="col-lg-5 col-md-7 col-12 ind-col-info" style="direction: {{ Session::get('direction') }}">
+                <div class="details">
+                            <h1 class="ind-pd-title mb-2">{{$product->name}}</h1>
+                            @if($product->product_code)
+                                <div class="ind-pd-partno mb-2">
+                                    <span>{{\App\CPU\translate('Part Number')}}:</span> {{ $product->product_code }}
+                                </div>
+                            @endif
+                            <div class="d-flex align-items-center mb-2 pro ind-meta-row">
+                                @if($detail_review_count > 0)
                                 <span
                                     class="d-inline-block  align-middle mt-1 {{Session::get('direction') === "rtl" ? 'ml-md-2 ml-sm-0 pl-2' : 'mr-md-2 mr-sm-0 pr-2'}}"
                                     style="color: #FE961C">{{$overallRating[0]}}</span>
@@ -283,6 +347,9 @@
                                 </div>
                                 <span style="font-weight: 400;"
                                     class="font-for-tab d-inline-block font-size-sm text-body align-middle mt-1 {{Session::get('direction') === "rtl" ? 'mr-1 ml-md-2 ml-1 pr-md-2 pr-sm-1 pl-md-2 pl-sm-1' : 'ml-1 mr-md-2 mr-1 pl-md-2 pl-sm-1 pr-md-2 pr-sm-1'}}">{{$overallRating[1]}} {{\App\CPU\translate('Reviews')}}</span>
+                                @else
+                                <span class="ind-no-review-inline align-middle mt-1 {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}">{{\App\CPU\translate('No reviews yet')}}</span>
+                                @endif
                                 <span style="width: 0px;height: 10px;border: 0.5px solid #707070; margin-top: 6px;font-weight: 400 !important;"></span>
                                 <span style="font-weight: 400;"
                                     class="font-for-tab d-inline-block font-size-sm text-body align-middle mt-1 {{Session::get('direction') === "rtl" ? 'mr-1 ml-md-2 ml-1 pr-md-2 pr-sm-1 pl-md-2 pl-sm-1' : 'ml-1 mr-md-2 mr-1 pl-md-2 pl-sm-1 pr-md-2 pr-sm-1'}}">{{$countOrder}} {{\App\CPU\translate('orders')}}   </span>
@@ -291,25 +358,66 @@
                                     class=" font-for-tab d-inline-block font-size-sm text-body align-middle mt-1 {{Session::get('direction') === "rtl" ? 'mr-1 ml-md-2 ml-0 pr-md-2 pr-sm-1 pl-md-2 pl-sm-1' : 'ml-1 mr-md-2 mr-0 pl-md-2 pl-sm-1 pr-md-2 pr-sm-1'}} text-capitalize">  {{$countWishlist}} {{\App\CPU\translate('wish_listed')}} </span>
 
                             </div>
+                </div>
+                <div class="ind-pd-stock mb-3">
+                    @if($product->current_stock > 0)
+                        <span class="ind-stock-in">&#10003; {{\App\CPU\translate('In Stock')}}</span>
+                    @else
+                        <span class="ind-stock-out">{{\App\CPU\translate('Out of Stock')}}</span>
+                    @endif
+                    @if(!empty($product->minimum_order_qty) && $product->minimum_order_qty > 0)
+                        <span class="ind-moq">{{\App\CPU\translate('Min. order')}}: {{ $product->minimum_order_qty }}</span>
+                    @endif
+                </div>
+
+                <!-- Key Features (dynamic attributes only) -->
+                <div class="ind-keyfeatures">
+                    <div class="ind-section-subtitle">{{\App\CPU\translate('Key Features')}}</div>
+                    @if($detail_has_specs)
+                        <table class="ind-keyfeatures-table">
+                            @foreach($detail_specs as $kf_name => $kf_value)
+                                <tr>
+                                    <td>{{ $kf_name }}</td>
+                                    <td>{{ $kf_value }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    @else
+                        <p class="text-muted mb-0">{{\App\CPU\translate('Detailed specifications are available on request.')}}</p>
+                    @endif
+                </div>
+
+                <!-- Business Benefits -->
+                <div class="ind-benefits">
+                    <div class="ind-section-subtitle">{{\App\CPU\translate('Business Benefits')}}</div>
+                    <ul class="ind-benefits-list">
+                        <li>{{\App\CPU\translate('GST Invoice Available')}}</li>
+                        <li>{{\App\CPU\translate('Bulk Order Support')}}</li>
+                        <li>{{\App\CPU\translate('Genuine Industrial Products')}}</li>
+                        <li>{{\App\CPU\translate('Secure Payment')}}</li>
+                        <li>{{\App\CPU\translate('Fast Dispatch')}}</li>
+                        <li>{{\App\CPU\translate('Quote Assistance')}}</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- RIGHT: Buy / Quote card -->
+            <div class="col-lg-3 col-md-12 col-12 ind-col-buy">
+                <div class="ind-buy-card">
                             <div class="mb-3">
                                 @if($product->discount > 0)
                                     <strike style="color: #E96A6A;" class="{{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-3'}}">
                                         {{\App\CPU\Helpers::currency_converter($product->unit_price)}}
                                     </strike>
                                 @endif
-                                <span
-                                    class="h3 font-weight-normal text-accent ">
+                                <span class="ind-pd-price">
                                     {{\App\CPU\Helpers::get_price_range($product) }}
-                                </span> <small>/ per {{$product->unit}}</small>
+                                </span> <small class="ind-pd-unit">/ per {{$product->unit}}</small>
                                 <span class="{{Session::get('direction') === "rtl" ? 'mr-2' : 'ml-2'}}"
                                     style="font-size: 12px;font-weight:400">
                                     (<span>{{\App\CPU\translate('tax')}} : </span>
                                     <span id="set-tax-amount"></span>)
                                 </span>
                             </div>
-
-
-
                             <form id="add-to-cart-form" class="mb-2">
                                 @csrf
                                 <input type="hidden" name="id" value="{{ $product->id }}">
@@ -428,14 +536,14 @@
                                         class="btn element-center btn-gap-{{Session::get('direction') === "rtl" ? 'left' : 'right'}}"
                                         onclick="buy_now()"
                                         type="button"
-                                        style="width:37%; height: 45px; background: #FFC400 !important; color: #082A45; font-weight:700;">
+                                        style="width:37%; height: 46px; background: #FFC400 !important; color: #082A45; font-weight:700; border-radius:8px;">
                                         <span class="string-limit">{{\App\CPU\translate('buy_now')}}</span>
                                     </button>
                                     <button
-                                        class="btn btn-primary element-center btn-gap-{{Session::get('direction') === "rtl" ? 'left' : 'right'}}"
+                                        class="btn element-center btn-gap-{{Session::get('direction') === "rtl" ? 'left' : 'right'}}"
                                         onclick="addToCart()"
                                         type="button"
-                                        style="width:37%; height: 45px;{{Session::get('direction') === "rtl" ? 'margin-right: 20px;' : 'margin-left: 20px;'}}">
+                                        style="width:37%; height: 46px; background: #082A45 !important; color: #ffffff; font-weight:700; border-radius:8px;{{Session::get('direction') === "rtl" ? 'margin-right: 16px;' : 'margin-left: 16px;'}}">
                                         <span class="string-limit">{{\App\CPU\translate('add_to_cart')}}</span>
                                     </button>
                                     <button type="button" onclick="addWishlist('{{$product['id']}}')"
@@ -449,281 +557,34 @@
                             </form>
                             <!-- INQUIRY BUTTON -->
                             <div class="mt-3 mb-4">
-                                <button type="button" class="btn btn-block" data-toggle="modal" data-target="#inquiryModal" style="background: {{$web_config['primary_color']}}10; color: {{$web_config['primary_color']}}; border: 1px solid {{$web_config['primary_color']}}; font-weight: bold; height: 45px; border-radius: 5px;">
-                                    <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i> {{\App\CPU\translate('Request a Quote / Inquire About This Product')}}
+                                <button type="button" class="btn btn-block ind-pd-quote-btn" data-toggle="modal" data-target="#inquiryModal">
+                                    <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i> {{\App\CPU\translate('Request a Quote / Inquire')}}
                                 </button>
                             </div>
-
+                    <div class="ind-buy-expert">
+                        <i class="fa fa-headphones {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>
+                        {{\App\CPU\translate('Need bulk pricing?')}}
+                        <a href="{{route('contacts')}}">{{\App\CPU\translate('Call a product expert')}}</a>
+                    </div>
                             <div style="text-align:{{Session::get('direction') === "rtl" ? 'right' : 'left'}};"
                                 class="sharethis-inline-share-buttons"></div>
-                        </div>
-                    </div>
                 </div>
-                <div class="row">
-                    <div class="mt-4 rtl col-12" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
-                        <div class="row" >
-                            <div class="col-12">
-                                <div class=" mt-1">
-                                    <!-- Tabs-->
-                                    <ul class="nav nav-tabs ind-detail-tabs d-flex justify-content-center" role="tablist" style="margin-top:35px;">
-                                        <li class="nav-item">
-                                            <a class="nav-link active " href="#overview" data-toggle="tab" role="tab"
-                                            style="color: black !important;font-weight: 400;font-size: 24px;">
-                                                {{\App\CPU\translate('overview')}}
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" href="#reviews" data-toggle="tab" role="tab"
-                                            style="color: black !important;font-weight: 400;font-size: 24px;">
-                                                {{\App\CPU\translate('reviews')}}
-                                            </a>
-                                        </li>
-                                    </ul>
-                                    <div class="px-4 pt-lg-3 pb-3 mb-3 mr-0 mr-md-2" style="background: #ffffff;border-radius:10px;min-height: 817px;">
-                                        <div class="tab-content px-lg-3">
-                                            <!-- Tech specs tab-->
-                                            <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                                                <div class="row pt-2 specification">
-                                                    @if($product->video_url!=null)
-                                                        <div class="col-12 mb-4">
-                                                            <iframe width="420" height="315"
-                                                                    src="{{$product->video_url}}">
-                                                            </iframe>
-                                                        </div>
-                                                    @endif
-
-                                                    <div class="text-body col-lg-12 col-md-12" style="overflow: scroll;">
-                                                        {!! $product['details'] !!}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            @php($reviews_of_product = App\Model\Review::where('product_id',$product->id)->paginate(2))
-                                            <!-- Reviews tab-->
-                                            <div class="tab-pane fade" id="reviews" role="tabpanel">
-                                                <div class="row pt-2 pb-3">
-                                                    <div class="col-lg-4 col-md-5 ">
-                                                        <div class=" row d-flex justify-content-center align-items-center">
-                                                            <div class="col-12 d-flex justify-content-center align-items-center">
-                                                                <h2 class="overall_review mb-2" style="font-weight: 500;font-size: 50px;">
-                                                                    {{$overallRating[1]}}
-                                                                </h2>
-                                                            </div>
-                                                            <div
-                                                                class="d-flex justify-content-center align-items-center star-rating ">
-                                                                @if (round($overallRating[0])==5)
-                                                                    @for ($i = 0; $i < 5; $i++)
-                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                @endif
-                                                                @if (round($overallRating[0])==4)
-                                                                    @for ($i = 0; $i < 4; $i++)
-                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                    <i class="czi-star font-size-sm text-muted {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                @endif
-                                                                @if (round($overallRating[0])==3)
-                                                                    @for ($i = 0; $i < 3; $i++)
-                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                    @for ($j = 0; $j < 2; $j++)
-                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                @endif
-                                                                @if (round($overallRating[0])==2)
-                                                                    @for ($i = 0; $i < 2; $i++)
-                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                    @for ($j = 0; $j < 3; $j++)
-                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                @endif
-                                                                @if (round($overallRating[0])==1)
-                                                                    @for ($i = 0; $i < 4; $i++)
-                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                    <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                @endif
-                                                                @if (round($overallRating[0])==0)
-                                                                    @for ($i = 0; $i < 5; $i++)
-                                                                        <i class="czi-star font-size-sm text-muted {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
-                                                                    @endfor
-                                                                @endif
-                                                            </div>
-                                                            <div class="col-12 d-flex justify-content-center align-items-center mt-2">
-                                                                <span class="text-center">
-                                                                    {{$reviews_of_product->total()}} {{\App\CPU\translate('ratings')}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-lg-8 col-md-7 pt-sm-3 pt-md-0" >
-                                                        <div class="row d-flex align-items-center mb-2 font-size-sm">
-                                                            <div
-                                                                class="col-3 text-nowrap "><span
-                                                                    class="d-inline-block align-middle text-body">{{\App\CPU\translate('Excellent')}}</span>
-                                                            </div>
-                                                            <div class="col-8">
-                                                                <div class="progress text-body" style="height: 5px;">
-                                                                    <div class="progress-bar " role="progressbar"
-                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[0] != 0) ? ($rating[0] / $overallRating[1]) * 100 : (0); ?>%;"
-                                                                        aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"></div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-1 text-body">
-                                                                <span
-                                                                    class=" {{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}} ">
-                                                                    {{$rating[0]}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
-                                                            <div
-                                                                class="col-3 text-nowrap "><span
-                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Good')}}</span>
-                                                            </div>
-                                                            <div class="col-8">
-                                                                <div class="progress" style="height: 5px;">
-                                                                    <div class="progress-bar" role="progressbar"
-                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[1] != 0) ? ($rating[1] / $overallRating[1]) * 100 : (0); ?>%; background-color: #a7e453;"
-                                                                        aria-valuenow="27" aria-valuemin="0" aria-valuemax="100"></div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-1">
-                                                                <span
-                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
-                                                                        {{$rating[1]}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
-                                                            <div
-                                                                class="col-3 text-nowrap"><span
-                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Average')}}</span>
-                                                            </div>
-                                                            <div class="col-8">
-                                                                <div class="progress" style="height: 5px;">
-                                                                    <div class="progress-bar" role="progressbar"
-                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[2] != 0) ? ($rating[2] / $overallRating[1]) * 100 : (0); ?>%; background-color: #ffda75;"
-                                                                        aria-valuenow="17" aria-valuemin="0" aria-valuemax="100"></div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-1">
-                                                                <span
-                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
-                                                                    {{$rating[2]}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
-                                                            <div
-                                                                class="col-3 text-nowrap "><span
-                                                                    class="d-inline-block align-middle">{{\App\CPU\translate('Below Average')}}</span>
-                                                            </div>
-                                                            <div class="col-8">
-                                                                <div class="progress" style="height: 5px;">
-                                                                    <div class="progress-bar" role="progressbar"
-                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[3] != 0) ? ($rating[3] / $overallRating[1]) * 100 : (0); ?>%; background-color: #fea569;"
-                                                                        aria-valuenow="9" aria-valuemin="0" aria-valuemax="100"></div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-1">
-                                                                <span
-                                                                        class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
-                                                                    {{$rating[3]}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="row d-flex align-items-center text-body font-size-sm">
-                                                            <div
-                                                                class="col-3 text-nowrap"><span
-                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Poor')}}</span>
-                                                            </div>
-                                                            <div class="col-8">
-                                                                <div class="progress" style="height: 5px;">
-                                                                    <div class="progress-bar" role="progressbar"
-                                                                        style="background-color: {{$web_config['primary_color']}} !important;backbround-color:{{$web_config['primary_color']}};width: <?php echo $widthRating = ($rating[4] != 0) ? ($rating[4] / $overallRating[1]) * 100 : (0); ?>%;"
-                                                                        aria-valuenow="4" aria-valuemin="0" aria-valuemax="100"></div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-1">
-                                                                <span
-                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
-                                                                        {{$rating[4]}}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="row pb-4 mb-3">
-                                                    <div style="display: block;width:100%;text-align: center;background: #F3F4F5;border-radius: 5px;padding:5px;">
-                                                        <span class="text-capitalize">{{\App\CPU\translate('Product Review')}}</span>
-                                                    </div>
-                                                </div>
-                                                <div class="row pb-4">
-                                                    <div class="col-12" id="product-review-list">
-                                                        {{-- @foreach($reviews_of_product as $productReview) --}}
-                                                            {{-- @include('web-views.partials.product-reviews',['productRevie'=>$productRevie]) --}}
-                                                        {{-- @endforeach --}}
-                                                        @if(count($product->reviews)==0)
-                                                            <div class="card">
-                                                                <div class="card-body">
-                                                                    <h6 class="text-danger text-center">{{\App\CPU\translate('product_review_not_available')}}</h6>
-                                                                </div>
-                                                            </div>
-                                                        @endif
-
-                                                    </div>
-                                                    @if(count($product->reviews) > 0)
-                                                    <div class="col-12">
-                                                        <div class="card-footer d-flex justify-content-center align-items-center">
-                                                            <button class="btn" style="background: {{$web_config['primary_color']}}; color: #ffffff" onclick="load_review()">{{\App\CPU\translate('view more')}}</button>
-                                                        </div>
-                                                    </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
-            <div class="col-md-3 ">
-                <div class="product-details-shipping-details">
-                    <div class="shipping-details-bottom-border">
-                        <div style="padding: 25px;">
-                            <img class="{{Session::get('direction') === "rtl" ? 'float-right ml-2' : 'mr-2'}}" style="height: 20px;width:20px;" src="{{asset("public/assets/front-end/png/Payment.png")}}"
-                                    alt="">
-                            <span>{{\App\CPU\translate('Safe Payment')}}</span>
-                        </div>
-                    </div>
-                    <div  class="shipping-details-bottom-border">
-                        <div style="padding: 25px;">
-                            <img class="{{Session::get('direction') === "rtl" ? 'float-right ml-2' : 'mr-2'}}" style="height: 20px;width:20px;"
-                                src="{{asset("public/assets/front-end/png/money.png")}}"
-                                    alt="">
-                            <span>{{ \App\CPU\translate('7 Days Return Policy')}}</span>
-                        </div>
-                    </div>
-                    <div class="shipping-details-bottom-border">
-                       <div style="padding: 25px;">
-                            <img class="{{Session::get('direction') === "rtl" ? 'float-right ml-2' : 'mr-2'}}"
-                                style="height: 20px;width:20px;"
-                                src="{{asset("public/assets/front-end/png/Genuine.png")}}"
-                                alt="">
-                            <span>{{ \App\CPU\translate('100% Authentic Products')}}</span>
-                       </div>
-                    </div>
+            <!-- FULL-WIDTH: Trust badges -->
+            <div class="col-12 ind-trust-row">
+                <div class="ind-trust-badges">
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('Genuine Products')}}</div>
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('GST Invoice')}}</div>
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('Secure Payments')}}</div>
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('Bulk Pricing')}}</div>
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('Fast Dispatch')}}</div>
+                    <div class="ind-trust-badge"><span class="ind-trust-ic">&#10003;</span> {{\App\CPU\translate('Support Available')}}</div>
                 </div>
+            </div>
+            <!-- Store / seller info -->
+            <div class="col-12 ind-col-store">
                 <div style="background: #ffffff; padding: 25px;border-radius: 5px;
-                    font-weight: 400;color: #212629;margin-top: 10px;">
+                    font-weight: 400;color: #212629;margin-top: 0;">
                     {{--seller section--}}
                     @if($product->added_by=='seller')
                         @if(isset($product->seller->shop))
@@ -901,32 +762,321 @@
                         </div>
                     @endif
                 </div>
-                @php($more_product_from_seller = App\Model\Product::active()->where('added_by',$product->added_by)->where('user_id',$product->user_id)->latest()->take(5)->get())
-                <div style="padding: 25px;">
-                    <div class="row d-flex justify-content-center">
-                        <span style="text-align: center;font-weight: 700;
-                        font-size: 16px;">
-                            {{ \App\CPU\translate('More From The Store')}}
-                        </span>
+            </div>
+        </div>
+        <div class="row ind-overview-row">
+                <!-- FULL-WIDTH ROW (below top section): Overview / Reviews tabs -->
+                <div class="col-12 ind-col-tabs">
+                    <div class="mt-4 rtl col-12" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
+                        <div class="row" >
+                            <div class="col-12">
+                                <div class=" mt-1">
+                                    <!-- Tabs-->
+                                    <ul class="nav nav-tabs ind-detail-tabs d-flex justify-content-center" role="tablist" style="margin-top:35px;">
+                                        <li class="nav-item">
+                                            <a class="nav-link active " href="#overview" data-toggle="tab" role="tab"
+                                            style="color: black !important;font-weight: 400;font-size: 24px;">
+                                                {{\App\CPU\translate('overview')}}
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="#reviews" data-toggle="tab" role="tab"
+                                            style="color: black !important;font-weight: 400;font-size: 24px;">
+                                                {{\App\CPU\translate('reviews')}}
+                                            </a>
+                                        </li>
+                                    </ul>
+                                    <div class="px-4 pt-lg-3 pb-3 mb-3 mr-0 mr-md-2 ind-detail-tab-card" style="background: #ffffff;border-radius:10px;">
+                                        <div class="tab-content px-lg-3">
+                                            <!-- Tech specs tab-->
+                                            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                                                @if($product->video_url!=null)
+                                                    <div class="row pt-2">
+                                                        <div class="col-12 mb-4">
+                                                            <iframe width="420" height="315"
+                                                                    src="{{$product->video_url}}">
+                                                            </iframe>
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                                <div class="row pt-2 specification">
+                                                    <!-- Overview + Technical specifications -->
+                                                    <div class="col-lg-8 col-md-7 col-12">
+                                                        <h5 class="ind-section-title">{{\App\CPU\translate('Product Overview')}}</h5>
+                                                        @if($detail_has_description)
+                                                            <div class="text-body ind-overview-content">
+                                                                {!! $product['details'] !!}
+                                                            </div>
+                                                        @else
+                                                            <p class="text-body ind-overview-fallback">
+                                                                {!! $detail_fallback !!}
+                                                            </p>
+                                                        @endif
+
+                                                        <h5 class="ind-section-title mt-4">{{\App\CPU\translate('Technical Specifications')}}</h5>
+                                                        @if($detail_has_specs)
+                                                            <table class="ind-specs-table">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>{{\App\CPU\translate('Specification')}}</th>
+                                                                        <th>{{\App\CPU\translate('Value')}}</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    @foreach($detail_specs as $detail_spec_name => $detail_spec_value)
+                                                                        <tr>
+                                                                            <td>{{ $detail_spec_name }}</td>
+                                                                            <td>{{ $detail_spec_value }}</td>
+                                                                        </tr>
+                                                                    @endforeach
+                                                                </tbody>
+                                                            </table>
+                                                            <p class="ind-specs-note">{{\App\CPU\translate('For complete datasheets and additional specifications, please request a quotation.')}}</p>
+                                                        @else
+                                                            <p class="text-body mb-2">{{\App\CPU\translate('Technical specifications are available on request.')}}</p>
+                                                        @endif
+                                                        <button type="button" class="btn ind-req-quote-btn" data-toggle="modal" data-target="#inquiryModal">
+                                                            <i class="fa fa-file-text-o {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>{{\App\CPU\translate('Request Quote')}}
+                                                        </button>
+
+                                                        <h5 class="ind-section-title mt-4">{{\App\CPU\translate('Shipping & Returns')}}</h5>
+                                                        <p class="text-body mb-0">{{\App\CPU\translate('Delivery time and return eligibility may vary by product. Contact support for confirmation.')}}</p>
+                                                    </div>
+
+                                                    <!-- Key Information + Why FIAPL -->
+                                                    <div class="col-lg-4 col-md-5 col-12 mt-4 mt-md-0">
+                                                        <div class="ind-info-card">
+                                                            <div class="ind-info-card-head">{{\App\CPU\translate('Key Information')}}</div>
+                                                            <table class="ind-info-table">
+                                                                @if($detail_brand_name)
+                                                                    <tr><td>{{\App\CPU\translate('Brand')}}</td><td>{{ $detail_brand_name }}</td></tr>
+                                                                @endif
+                                                                @if($detail_category_name)
+                                                                    <tr><td>{{\App\CPU\translate('Category')}}</td><td>{{ $detail_category_name }}</td></tr>
+                                                                @endif
+                                                                @if($product->product_code)
+                                                                    <tr><td>{{\App\CPU\translate('Part Number')}}</td><td>{{ $product->product_code }}</td></tr>
+                                                                @endif
+                                                                <tr><td>{{\App\CPU\translate('Availability')}}</td><td>{{\App\CPU\translate('Request confirmation')}}</td></tr>
+                                                                <tr><td>{{\App\CPU\translate('Support')}}</td><td>{{\App\CPU\translate('Bulk order & quotation support available')}}</td></tr>
+                                                            </table>
+                                                        </div>
+
+                                                        <div class="ind-info-card ind-why-card mt-3">
+                                                            <div class="ind-info-card-head">{{\App\CPU\translate('Why source from FIAPL?')}}</div>
+                                                            <ul class="ind-why-list">
+                                                                <li>{{\App\CPU\translate('Genuine industrial product sourcing')}}</li>
+                                                                <li>{{\App\CPU\translate('Quick quotation response')}}</li>
+                                                                <li>{{\App\CPU\translate('Support for bulk requirements')}}</li>
+                                                                <li>{{\App\CPU\translate('Suitable for B2B procurement')}}</li>
+                                                                <li>{{\App\CPU\translate('Pan-India delivery assistance')}}</li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            @php($reviews_of_product = App\Model\Review::where('product_id',$product->id)->paginate(2))
+                                            <!-- Reviews tab-->
+                                            <div class="tab-pane fade" id="reviews" role="tabpanel">
+                                                @if($detail_review_count > 0)
+                                                <div class="row pt-2 pb-3">
+                                                    <div class="col-lg-4 col-md-5 ">
+                                                        <div class=" row d-flex justify-content-center align-items-center">
+                                                            <div class="col-12 d-flex justify-content-center align-items-center">
+                                                                <h2 class="overall_review mb-2" style="font-weight: 500;font-size: 50px;">
+                                                                    {{$overallRating[1]}}
+                                                                </h2>
+                                                            </div>
+                                                            <div
+                                                                class="d-flex justify-content-center align-items-center star-rating ">
+                                                                @if (round($overallRating[0])==5)
+                                                                    @for ($i = 0; $i < 5; $i++)
+                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                @endif
+                                                                @if (round($overallRating[0])==4)
+                                                                    @for ($i = 0; $i < 4; $i++)
+                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                    <i class="czi-star font-size-sm text-muted {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                @endif
+                                                                @if (round($overallRating[0])==3)
+                                                                    @for ($i = 0; $i < 3; $i++)
+                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                    @for ($j = 0; $j < 2; $j++)
+                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                @endif
+                                                                @if (round($overallRating[0])==2)
+                                                                    @for ($i = 0; $i < 2; $i++)
+                                                                        <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                    @for ($j = 0; $j < 3; $j++)
+                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                @endif
+                                                                @if (round($overallRating[0])==1)
+                                                                    @for ($i = 0; $i < 4; $i++)
+                                                                        <i class="czi-star font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                    <i class="czi-star-filled font-size-sm text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                @endif
+                                                                @if (round($overallRating[0])==0)
+                                                                    @for ($i = 0; $i < 5; $i++)
+                                                                        <i class="czi-star font-size-sm text-muted {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}"></i>
+                                                                    @endfor
+                                                                @endif
+                                                            </div>
+                                                            <div class="col-12 d-flex justify-content-center align-items-center mt-2">
+                                                                <span class="text-center">
+                                                                    {{$reviews_of_product->total()}} {{\App\CPU\translate('ratings')}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-lg-8 col-md-7 pt-sm-3 pt-md-0" >
+                                                        <div class="row d-flex align-items-center mb-2 font-size-sm">
+                                                            <div
+                                                                class="col-3 text-nowrap "><span
+                                                                    class="d-inline-block align-middle text-body">{{\App\CPU\translate('Excellent')}}</span>
+                                                            </div>
+                                                            <div class="col-8">
+                                                                <div class="progress text-body" style="height: 5px;">
+                                                                    <div class="progress-bar " role="progressbar"
+                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[0] != 0) ? ($rating[0] / $overallRating[1]) * 100 : (0); ?>%;"
+                                                                        aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-1 text-body">
+                                                                <span
+                                                                    class=" {{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}} ">
+                                                                    {{$rating[0]}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
+                                                            <div
+                                                                class="col-3 text-nowrap "><span
+                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Good')}}</span>
+                                                            </div>
+                                                            <div class="col-8">
+                                                                <div class="progress" style="height: 5px;">
+                                                                    <div class="progress-bar" role="progressbar"
+                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[1] != 0) ? ($rating[1] / $overallRating[1]) * 100 : (0); ?>%; background-color: #a7e453;"
+                                                                        aria-valuenow="27" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-1">
+                                                                <span
+                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
+                                                                        {{$rating[1]}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
+                                                            <div
+                                                                class="col-3 text-nowrap"><span
+                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Average')}}</span>
+                                                            </div>
+                                                            <div class="col-8">
+                                                                <div class="progress" style="height: 5px;">
+                                                                    <div class="progress-bar" role="progressbar"
+                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[2] != 0) ? ($rating[2] / $overallRating[1]) * 100 : (0); ?>%; background-color: #ffda75;"
+                                                                        aria-valuenow="17" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-1">
+                                                                <span
+                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
+                                                                    {{$rating[2]}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row d-flex align-items-center mb-2 text-body font-size-sm">
+                                                            <div
+                                                                class="col-3 text-nowrap "><span
+                                                                    class="d-inline-block align-middle">{{\App\CPU\translate('Below Average')}}</span>
+                                                            </div>
+                                                            <div class="col-8">
+                                                                <div class="progress" style="height: 5px;">
+                                                                    <div class="progress-bar" role="progressbar"
+                                                                        style="background-color: {{$web_config['primary_color']}} !important;width: <?php echo $widthRating = ($rating[3] != 0) ? ($rating[3] / $overallRating[1]) * 100 : (0); ?>%; background-color: #fea569;"
+                                                                        aria-valuenow="9" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-1">
+                                                                <span
+                                                                        class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
+                                                                    {{$rating[3]}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="row d-flex align-items-center text-body font-size-sm">
+                                                            <div
+                                                                class="col-3 text-nowrap"><span
+                                                                    class="d-inline-block align-middle ">{{\App\CPU\translate('Poor')}}</span>
+                                                            </div>
+                                                            <div class="col-8">
+                                                                <div class="progress" style="height: 5px;">
+                                                                    <div class="progress-bar" role="progressbar"
+                                                                        style="background-color: {{$web_config['primary_color']}} !important;backbround-color:{{$web_config['primary_color']}};width: <?php echo $widthRating = ($rating[4] != 0) ? ($rating[4] / $overallRating[1]) * 100 : (0); ?>%;"
+                                                                        aria-valuenow="4" aria-valuemin="0" aria-valuemax="100"></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-1">
+                                                                <span
+                                                                    class="{{Session::get('direction') === "rtl" ? 'mr-3 float-left' : 'ml-3 float-right'}}">
+                                                                        {{$rating[4]}}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row pb-4 mb-3">
+                                                    <div style="display: block;width:100%;text-align: center;background: #F3F4F5;border-radius: 5px;padding:5px;">
+                                                        <span class="text-capitalize">{{\App\CPU\translate('Product Review')}}</span>
+                                                    </div>
+                                                </div>
+                                                @endif
+                                                <div class="row pb-4">
+                                                    <div class="col-12" id="product-review-list">
+                                                        {{-- @foreach($reviews_of_product as $productReview) --}}
+                                                            {{-- @include('web-views.partials.product-reviews',['productRevie'=>$productRevie]) --}}
+                                                        {{-- @endforeach --}}
+                                                        @if($detail_review_count == 0)
+                                                            <div class="ind-no-reviews text-center">
+                                                                <i class="czi-star" style="font-size:28px;color:#c7ced6;"></i>
+                                                                <p class="mb-0 mt-2" style="color:#6b7785;font-weight:500;">{{\App\CPU\translate('No reviews yet')}}</p>
+                                                            </div>
+                                                        @endif
+
+                                                    </div>
+                                                    @if(count($product->reviews) > 0)
+                                                    <div class="col-12">
+                                                        <div class="card-footer d-flex justify-content-center align-items-center">
+                                                            <button class="btn" style="background: {{$web_config['primary_color']}}; color: #ffffff" onclick="load_review()">{{\App\CPU\translate('view more')}}</button>
+                                                        </div>
+                                                    </div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div style="">
-
-                    @foreach($more_product_from_seller as $item)
-
-                            @include('web-views.partials.seller-products-product-details',['product'=>$item,'decimal_point_settings'=>$decimal_point_settings])
-
-                    @endforeach
-
-                </div>
-            </div>
-
-
         </div>
     </div>
 
     <!-- Product carousel (You may also like)-->
-    <div class="container  mb-3 rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
+    <div class="container ind-similar-wrap mb-3 rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
         <div class="row flex-between">
             <div class="text-capitalize" style="font-weight: 700; font-size: 30px;{{Session::get('direction') === "rtl" ? 'margin-right: 5px;' : 'margin-left: 5px;'}}">
                 <span>{{ \App\CPU\translate('similar_products')}}</span>

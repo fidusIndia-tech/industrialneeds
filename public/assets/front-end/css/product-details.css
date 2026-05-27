@@ -365,3 +365,610 @@ figure {
         }
     }
 }
+
+/* ==========================================================================
+   Product detail — enterprise B2B overview enhancements
+   Theme: Navy #082A45, Yellow CTA #FFC400, white cards, light-grey bg
+   ========================================================================== */
+.ind-detail-tab-card {
+    min-height: auto;
+    box-shadow: 0 1px 4px rgba(8, 42, 69, 0.06);
+    border: 1px solid #eef1f4;
+}
+
+.ind-section-title {
+    color: #082A45;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #FFC400;
+    display: inline-block;
+}
+
+.ind-overview-content {
+    color: #3a4654;
+    line-height: 1.7;
+    font-size: 15px;
+}
+
+.ind-overview-fallback {
+    color: #3a4654;
+    line-height: 1.8;
+    font-size: 15px;
+    background: #f7f9fb;
+    border: 1px solid #eef1f4;
+    border-left: 4px solid #082A45;
+    border-radius: 6px;
+    padding: 16px 18px;
+}
+
+.ind-req-quote-btn {
+    background: #FFC400;
+    color: #082A45;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 10px 22px;
+    margin-top: 10px;
+    border: none;
+    transition: filter 0.15s ease-in-out;
+}
+.ind-req-quote-btn:hover {
+    filter: brightness(0.95);
+    color: #082A45;
+}
+
+/* Key information + Why FIAPL cards */
+.ind-info-card {
+    background: #ffffff;
+    border: 1px solid #eef1f4;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(8, 42, 69, 0.06);
+    overflow: hidden;
+}
+
+.ind-info-card-head {
+    background: #082A45;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px 16px;
+}
+
+.ind-info-table {
+    width: 100%;
+    margin: 0;
+}
+.ind-info-table tr td {
+    padding: 10px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f3f6;
+    vertical-align: top;
+}
+.ind-info-table tr:last-child td {
+    border-bottom: none;
+}
+.ind-info-table tr td:first-child {
+    color: #6b7785;
+    font-weight: 500;
+    width: 42%;
+}
+.ind-info-table tr td:last-child {
+    color: #082A45;
+    font-weight: 600;
+}
+
+.ind-why-list {
+    list-style: none;
+    margin: 0;
+    padding: 14px 16px;
+}
+.ind-why-list li {
+    position: relative;
+    padding-left: 24px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #3a4654;
+    line-height: 1.4;
+}
+.ind-why-list li:last-child {
+    margin-bottom: 0;
+}
+.ind-why-list li:before {
+    content: "\2713";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: #082A45;
+    font-weight: 700;
+    background: #FFC400;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+/* Empty reviews state */
+.ind-no-reviews {
+    background: #f7f9fb;
+    border: 1px solid #eef1f4;
+    border-radius: 8px;
+    padding: 28px 16px;
+}
+
+/* RTL support for the info cards */
+[dir="rtl"] .ind-overview-fallback {
+    border-left: none;
+    border-right: 4px solid #082A45;
+}
+[dir="rtl"] .ind-why-list li {
+    padding-left: 0;
+    padding-right: 24px;
+}
+[dir="rtl"] .ind-why-list li:before {
+    left: auto;
+    right: 0;
+}
+
+/* ==========================================================================
+   Product detail — v2 enterprise polish (image card, help panel, specs)
+   Navy #082A45 · Industrial Blue #0B4F8A · Yellow #FFC400
+   Bg #F5F7FA · Muted #64748B · Border #E2E8F0
+   ========================================================================== */
+
+/* --- Product image card --- */
+.ind-gallery-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(8, 42, 69, 0.07);
+    padding: 18px;
+}
+.ind-gallery-card .cz-preview-item {
+    min-height: 300px;
+}
+/* Never stretch/crop the product photo */
+.ind-gallery-card .cz-image-zoom,
+.ind-gallery-card .cz-preview-item > img {
+    object-fit: contain !important;
+    height: auto !important;
+    max-height: 360px !important;
+}
+/* Polished, aligned thumbnails with navy/yellow selected state */
+.ind-gallery-card .cz-thumblist-item {
+    border: 2px solid #E2E8F0 !important;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.ind-gallery-card .cz-thumblist-item.active {
+    border-color: #082A45 !important;
+    box-shadow: inset 0 0 0 2px #FFC400;
+    padding: 6% !important;
+}
+.ind-gallery-card .cz-thumblist-item.active > img,
+.ind-gallery-card .cz-thumblist-item:hover > img {
+    opacity: 1;
+}
+
+/* --- B2B help / assistance panel (right column, top section) --- */
+.ind-help-panel {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-top: 3px solid #0B4F8A;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(8, 42, 69, 0.06);
+    padding: 18px 20px;
+    margin-bottom: 14px;
+}
+.ind-help-panel-title {
+    color: #082A45;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 12px;
+}
+.ind-help-list {
+    list-style: none;
+    margin: 0 0 16px 0;
+    padding: 0;
+}
+.ind-help-list li {
+    position: relative;
+    padding-left: 26px;
+    margin-bottom: 9px;
+    font-size: 13.5px;
+    color: #334155;
+    line-height: 1.4;
+}
+.ind-help-list li:last-child {
+    margin-bottom: 0;
+}
+.ind-help-list li:before {
+    content: "\2713";
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 17px;
+    height: 17px;
+    font-size: 10px;
+    line-height: 17px;
+    text-align: center;
+    color: #ffffff;
+    background: #0B4F8A;
+    border-radius: 50%;
+}
+.ind-help-cta {
+    display: block;
+    width: 100%;
+    background: #FFC400;
+    color: #082A45;
+    font-weight: 700;
+    border: none;
+    border-radius: 6px;
+    padding: 11px 0;
+    transition: filter 0.15s ease-in-out;
+}
+.ind-help-cta:hover {
+    filter: brightness(0.95);
+    color: #082A45;
+}
+[dir="rtl"] .ind-help-list li {
+    padding-left: 0;
+    padding-right: 26px;
+}
+[dir="rtl"] .ind-help-list li:before {
+    left: auto;
+    right: 0;
+}
+
+/* --- "No reviews yet" inline state in the meta row --- */
+.ind-no-review-inline {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748B;
+}
+
+/* --- Technical specifications table --- */
+.ind-specs-table {
+    width: 100%;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.ind-specs-table thead th {
+    background: #082A45;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 10px 14px;
+    border: none;
+}
+.ind-specs-table tbody td {
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #111827;
+    border-bottom: 1px solid #EEF2F6;
+    vertical-align: top;
+}
+.ind-specs-table tbody tr:nth-child(even) td {
+    background: #F8FAFC;
+}
+.ind-specs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.ind-specs-table tbody td:first-child {
+    color: #64748B;
+    font-weight: 600;
+    width: 42%;
+}
+.ind-specs-note {
+    font-size: 13px;
+    color: #64748B;
+    margin-bottom: 12px;
+}
+
+/* --- Why FIAPL card: subtle tint --- */
+.ind-why-card {
+    background: #F5F8FC;
+}
+.ind-why-card .ind-why-list {
+    padding: 16px 18px;
+}
+
+/* --- Overview heading / readability refinements --- */
+.ind-overview-content,
+.ind-overview-fallback {
+    color: #334155;
+}
+.ind-detail-tab-card {
+    background: #ffffff;
+}
+
+/* --- Similar products: keep gap tight on desktop --- */
+.ind-similar-wrap {
+    margin-top: 8px;
+}
+
+/* ==========================================================================
+   Page layout (safe & robust):
+   Row 1 (ind-top-row)  : [ image (col-lg-5) | info (col-lg-7) ]  — 2 columns.
+   Row 2 (full width)   : help support strip — 3 equal cards side by side
+                          (Need-help card | trust badges | store card).
+   Row 3 (ind-overview-row): full-width Overview / Reviews card.
+   Every card is at least ~300px wide, so text never wraps word-by-word.
+   On mobile the strip cards wrap and stack: image -> info -> help -> overview.
+   ========================================================================== */
+.ind-top-row {
+    align-items: stretch;
+}
+.ind-overview-row {
+    margin-top: 4px;
+}
+
+/* Full-width support strip: lay the 3 cards out horizontally and equal-width. */
+.ind-help-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 18px;
+}
+.ind-help-strip > div {
+    flex: 1 1 300px;     /* grow equally; never below ~300px before wrapping */
+    min-width: 0;        /* prevent flex overflow */
+    margin: 0 !important; /* reset the cards' own stacked margins */
+}
+/* Make the trust-badges and store cards match the help card (border + shadow). */
+.ind-help-strip > div:not(.ind-help-panel) {
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(8, 42, 69, 0.06);
+    background: #ffffff;
+}
+.ind-help-strip .ind-help-panel {
+    margin-bottom: 0;
+}
+/* Trust-badge rows read better centred inside their card. */
+.ind-help-strip .product-details-shipping-details .shipping-details-bottom-border > div {
+    padding: 16px 18px !important;
+}
+
+/* ==========================================================================
+   Product-info column polish (title / part no / price / CTAs)
+   Theme: Navy #082A45 · Industrial Blue #0B4F8A · Yellow #FFC400 · Muted #64748B
+   ========================================================================== */
+.ind-pd-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #082A45;
+    line-height: 1.35;
+    margin-bottom: 8px;
+}
+@media (min-width: 992px) {
+    .ind-pd-title { font-size: 26px; }
+}
+
+.ind-pd-partno {
+    font-size: 13px;
+    color: #64748B;
+}
+.ind-pd-partno span {
+    font-weight: 700;
+    color: #082A45;
+}
+
+.ind-pd-price {
+    font-size: 28px;
+    font-weight: 800;
+    color: #082A45;
+    line-height: 1.2;
+}
+.ind-pd-unit {
+    color: #64748B;
+    font-size: 13px;
+}
+
+/* Trust / assurance badges card — sits under the product image to fill the
+   space created when the info column is taller than the gallery. */
+.ind-assurance {
+    margin-top: 14px;
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(8, 42, 69, 0.06);
+    overflow: hidden;
+}
+.ind-assurance-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #082A45;
+    border-bottom: 1px solid #F0F3F6;
+}
+.ind-assurance-item:last-child {
+    border-bottom: none;
+}
+.ind-assurance-item img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
+/* Secondary CTA: Request a Quote / Inquire (navy outline, fills on hover) */
+.ind-pd-quote-btn {
+    background: #ffffff;
+    color: #082A45;
+    border: 1.5px solid #082A45;
+    font-weight: 700;
+    min-height: 46px;
+    height: auto;
+    padding: 10px 14px;
+    line-height: 1.3;
+    white-space: normal;
+    word-break: break-word;
+    border-radius: 8px;
+    transition: background .2s ease, color .2s ease;
+}
+.ind-pd-quote-btn:hover {
+    background: #082A45;
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   B2B product detail redesign — 3-column top + sticky buy card
+   ========================================================================== */
+.ind-top-row { align-items: flex-start; }
+
+/* Sticky buy/quote card (desktop) */
+.ind-buy-card {
+    background: #ffffff;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(8, 42, 69, 0.08);
+    padding: 20px;
+}
+@media (min-width: 992px) {
+    .ind-col-buy .ind-buy-card {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 90px;
+    }
+}
+
+/* Buy card: price prominent, controls stacked & full width */
+.ind-buy-card .ind-pd-price { font-size: 26px; }
+.ind-buy-card .product-quantity { flex-wrap: wrap; gap: 10px; }
+.ind-buy-card .d-flex.justify-content-start {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px !important;
+}
+.ind-buy-card .d-flex.justify-content-start > button {
+    width: 100% !important;
+    margin: 0 !important;
+}
+/* Wishlist button inside the card: outline style, full width */
+.ind-buy-card .for-hover-bg {
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px;
+    height: 46px;
+}
+.ind-pd-quote-btn { width: 100%; }
+
+/* "Call a product expert" line */
+.ind-buy-expert {
+    margin-top: 6px;
+    padding-top: 14px;
+    border-top: 1px dashed #E2E8F0;
+    font-size: 13px;
+    color: #64748B;
+    text-align: center;
+}
+.ind-buy-expert a {
+    color: #0B4F8A;
+    font-weight: 700;
+}
+
+/* Stock status + MOQ */
+.ind-pd-stock { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ind-stock-in {
+    color: #1a7f4b; font-weight: 700; font-size: 14px;
+    background: #e8f6ee; padding: 3px 10px; border-radius: 6px;
+}
+.ind-stock-out {
+    color: #c0392b; font-weight: 700; font-size: 14px;
+    background: #fdeceb; padding: 3px 10px; border-radius: 6px;
+}
+.ind-moq { color: #64748B; font-size: 13px; font-weight: 600; }
+
+/* Section subtitle used in the middle column */
+.ind-section-subtitle {
+    color: #082A45;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #FFC400;
+    display: inline-block;
+}
+
+/* Key Features table */
+.ind-keyfeatures { margin-top: 18px; }
+.ind-keyfeatures-table {
+    width: 100%;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+.ind-keyfeatures-table td {
+    padding: 9px 14px;
+    font-size: 13.5px;
+    border-bottom: 1px solid #EEF2F6;
+    vertical-align: top;
+}
+.ind-keyfeatures-table tr:last-child td { border-bottom: none; }
+.ind-keyfeatures-table tr:nth-child(even) td { background: #F8FAFC; }
+.ind-keyfeatures-table td:first-child { color: #64748B; font-weight: 600; width: 42%; }
+.ind-keyfeatures-table td:last-child { color: #111827; font-weight: 600; }
+
+/* Business Benefits checklist */
+.ind-benefits { margin-top: 20px; }
+.ind-benefits-list {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px;
+}
+.ind-benefits-list li {
+    position: relative; padding-left: 24px;
+    font-size: 13.5px; color: #334155; line-height: 1.4;
+}
+.ind-benefits-list li:before {
+    content: "\2713"; position: absolute; left: 0; top: 0;
+    width: 16px; height: 16px; line-height: 16px; font-size: 10px;
+    text-align: center; color: #fff; background: #0B4F8A; border-radius: 50%;
+}
+
+/* Full-width trust badges row */
+.ind-trust-row { margin-top: 8px; }
+.ind-trust-badges {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    background: #ffffff; border: 1px solid #E2E8F0;
+    border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(8, 42, 69, 0.05);
+}
+.ind-trust-badge {
+    flex: 1 1 150px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px; font-weight: 600; color: #082A45;
+}
+.ind-trust-ic {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; font-size: 11px;
+    color: #fff; background: #FFC400; color: #082A45; font-weight: 800;
+    border-radius: 50%; flex: 0 0 auto;
+}
+
+/* Store/seller card — constrain width so it doesn't stretch awkwardly */
+.ind-col-store { margin-top: 8px; }
+.ind-col-store > div {
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(8, 42, 69, 0.05);
+}
+
+/* Stack order on tablet/mobile: image -> info -> buy -> trust -> store */
+@media (max-width: 991.98px) {
+    .ind-col-buy { margin-top: 18px; }
+    .ind-benefits-list { grid-template-columns: 1fr; }
+}

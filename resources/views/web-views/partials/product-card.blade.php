@@ -28,10 +28,13 @@
         @if(optional($product->brand)->name)
             <div class="product-meta">{{ $product->brand->name }}</div>
         @endif
+        @if(!empty($product->product_code))
+            <div class="product-meta product-partno">{{\App\CPU\translate('Part No')}}: {{ $product->product_code }}</div>
+        @endif
 
         @php($pc_review_count = is_countable($product->reviews) ? count($product->reviews) : ($product->reviews_count ?? 0))
-        <div class="rating-show mt-1">
-            @if($pc_review_count > 0)
+        @if($pc_review_count > 0)
+            <div class="rating-show mt-1">
                 <span class="d-inline-block font-size-sm text-body">
                     @for($inc=0;$inc<5;$inc++)
                         @if($inc<$pc_rating[0])
@@ -42,10 +45,8 @@
                     @endfor
                     <span class="text-muted" style="font-size:12px;">( {{$pc_review_count}} )</span>
                 </span>
-            @else
-                <span class="ind-no-reviews">{{\App\CPU\translate('No reviews yet')}}</span>
-            @endif
-        </div>
+            </div>
+        @endif
 
         <div class="mt-2">
             @if($product->unit_price > 0)
@@ -63,7 +64,11 @@
         </div>
 
         <div class="product-action mt-auto">
-            <a href="{{route('product',$product->slug)}}">{{\App\CPU\translate('View Details')}}</a>
+            <a href="{{route('product',$product->slug)}}" class="product-action-view">{{\App\CPU\translate('View Details')}}</a>
+            <button type="button" class="product-action-wish" onclick="addWishlist('{{$product['id']}}')"
+                    title="{{\App\CPU\translate('Add to wishlist')}}" aria-label="{{\App\CPU\translate('Add to wishlist')}}">
+                <i class="fa fa-heart-o" aria-hidden="true"></i>
+            </button>
         </div>
     </div>
 </div>

@@ -951,12 +951,12 @@ footer.page-footer .social-btn:hover {
 .ind-feature-card .product-image-box {
     position: relative;
     height: 180px;
-    background: #FFFFFF;
+    background: #F5F7FA;
     border-bottom: 1px solid var(--ind-border);
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 14px;
+    padding: 16px;
 }
 
 @media (max-width: 768px) {
@@ -1040,13 +1040,21 @@ footer.page-footer .social-btn:hover {
     color: var(--ind-navy-2);
 }
 
-.ind-feature-card .product-action {
-    margin-top: 12px;
+.ind-feature-card .product-partno {
+    font-size: 11.5px;
+    color: var(--ind-navy-2);
+    font-weight: 600;
 }
 
-.ind-feature-card .product-action a {
-    display: block;
-    width: 100%;
+.ind-feature-card .product-action {
+    margin-top: 12px;
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.ind-feature-card .product-action .product-action-view {
+    flex: 1 1 auto;
     background: var(--ind-accent);
     color: var(--ind-navy);
     border: none;
@@ -1057,9 +1065,26 @@ footer.page-footer .social-btn:hover {
     text-align: center;
 }
 
-.ind-feature-card .product-action a:hover {
+.ind-feature-card .product-action .product-action-view:hover {
     background: var(--ind-accent-2);
     color: var(--ind-navy) !important;
+}
+
+.ind-feature-card .product-action .product-action-wish {
+    flex: 0 0 auto;
+    width: 40px;
+    background: #FFFFFF;
+    color: var(--ind-navy);
+    border: 1px solid var(--ind-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+
+.ind-feature-card .product-action .product-action-wish:hover {
+    background: var(--ind-navy);
+    color: #FFFFFF;
+    border-color: var(--ind-navy);
 }
 
 /* ---------- categories grid (full width) ---------- */
@@ -1832,9 +1857,17 @@ a.ind-hero-support-card { text-decoration: none; }
 }
 
 .ind-listing-title .ind-listing-title-text {
-    font-weight: 700;
-    font-size: 20px;
+    font-weight: 800;
+    font-size: 28px;
+    line-height: 1.2;
     color: var(--ind-navy);
+    display: inline-block;
+}
+
+@media (max-width: 768px) {
+    .ind-listing-title .ind-listing-title-text {
+        font-size: 22px;
+    }
 }
 
 .ind-listing-title .ind-breadcrumb {
@@ -1920,6 +1953,99 @@ a.ind-hero-support-card { text-decoration: none; }
 
 .ind-empty-state p {
     margin-bottom: 18px;
+}
+
+/* active filter chips */
+.ind-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.ind-filter-chips .ind-chips-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ind-muted);
+}
+
+.ind-filter-chips .ind-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--ind-border);
+    color: var(--ind-navy);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 999px;
+}
+
+.ind-filter-chips .ind-chip .ind-chip-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #eef2f6;
+    color: var(--ind-muted);
+    font-size: 14px;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.ind-filter-chips .ind-chip .ind-chip-x:hover {
+    background: var(--ind-navy);
+    color: #fff;
+}
+
+.ind-filter-chips .ind-chip-clear {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ind-navy-2);
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.ind-filter-chips .ind-chip-clear:hover {
+    color: var(--ind-navy);
+}
+
+/* themed pagination */
+#paginator-ajax .pagination,
+.pagination {
+    gap: 6px;
+}
+
+.pagination .page-link {
+    color: var(--ind-navy);
+    border: 1px solid var(--ind-border);
+    border-radius: 8px !important;
+    margin: 0 2px;
+    min-width: 38px;
+    text-align: center;
+    font-weight: 600;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.pagination .page-link:hover {
+    background: #eef2f6;
+    color: var(--ind-navy);
+    border-color: #cbd5e1;
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--ind-navy) !important;
+    border-color: var(--ind-navy) !important;
+    color: #fff !important;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #b6c0cd;
+    border-color: var(--ind-border);
 }
 
 /* ---------- product detail page ---------- */

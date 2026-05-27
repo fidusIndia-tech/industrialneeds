@@ -211,20 +211,6 @@
             <span class="ind-listing-title-text text-capitalize">{{str_replace("_"," ",$data['data_from'])}} {{\App\CPU\translate('products')}} {{ isset($brand_name) ? '('.$brand_name.')' : ''}}</span>
         </div>
     </div>
-    <div class="container rtl" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
-        <div class="row">
-            <div class="col-md-3">
-                <a class="openbtn-tab mt-5" onclick="openNav()">
-                    <div style="font-size: 20px; font-weight: 600; " class="for-tab-display mt-5">
-                        <i class="fa fa-filter"></i>
-                        {{\App\CPU\translate('filter')}}
-                    </div>
-                </a>
-            </div>
-
-        </div>
-    </div>
-
     <!-- Page Content-->
     <div class="container pb-5 mb-2 mb-md-4 rtl"
          style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
@@ -295,7 +281,7 @@
 
                                 </div>
 
-                                <div style="width: 20%;background:#1B7FED;width:30px;height:35px;border-radius:3px;" class="d-flex justify-content-center align-items-center">
+                                <div style="width: 20%;background:#082A45;width:30px;height:35px;border-radius:3px;" class="d-flex justify-content-center align-items-center">
 
                                     <a class=""
                                         onclick="searchByPrice()">
@@ -318,7 +304,7 @@
                                        class="cz-filter-search form-control form-control-sm appended-form-control"
                                        type="text" id="search-brand">
                                 <div class="input-group-append-overlay">
-                                    <span style="color: #3498db;"
+                                    <span style="color: #082A45;"
                                           class="input-group-text">
                                         <i class="czi-search"></i>
                                     </span>
@@ -464,7 +450,7 @@
                                            class="cz-filter-search form-control form-control-sm appended-form-control"
                                            type="number" value="0" min="0" max="1000000" id="min_price">
                                     <div class="input-group-append-overlay">
-                                    <span style="color: #3498db;" class="input-group-text">
+                                    <span style="color: #082A45;" class="input-group-text">
                                         {{\App\CPU\currency_symbol()}}
                                     </span>
                                     </div>
@@ -477,7 +463,7 @@
                                            class="cz-filter-search form-control form-control-sm appended-form-control"
                                            type="number" id="max_price">
                                     <div class="input-group-append-overlay">
-                                        <span style="color: #3498db;" class="input-group-text">
+                                        <span style="color: #082A45;" class="input-group-text">
                                             {{\App\CPU\currency_symbol()}}
                                         </span>
                                     </div>
@@ -507,7 +493,7 @@
                                            class="cz-filter-search form-control form-control-sm appended-form-control"
                                            type="text" id="search-brand-m">
                                     <div class="input-group-append-overlay">
-                                        <span style="color: #3498db;"
+                                        <span style="color: #082A45;"
                                               class="input-group-text">
                                             <i class="czi-search"></i>
                                         </span>
@@ -604,7 +590,7 @@
             </div>
 
             <!-- Content  -->
-            <section class="col-lg-9">
+            <section class="col-lg-9 col-md-9 col-sm-8">
                 {{-- <div class="col-md-9"> --}}
                     <div class="row ind-listing-toolbar" style="margin:0px;">
                         <div class="col-md-6 d-flex  align-items-center">
@@ -633,17 +619,18 @@
                                             for="sorting">
                                             <span
                                                 class="{{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}">{{\App\CPU\translate('sort_by')}}</span></label>
-                                        <select style="background: white; appearance: auto;border-radius: 5px;border: 1px solid rgba(27, 127, 237, 0.5);padding:5px;"
+                                        @php($cur_sort = $data['sort_by'] ?? 'latest')
+                                        <select style="background: white; appearance: auto;border-radius: 5px;border: 1px solid #cbd5e1;padding:5px;color:#082A45;font-weight:600;"
                                                  onchange="filter(this.value)">
-                                            <option value="latest">{{\App\CPU\translate('Latest')}}</option>
+                                            <option value="latest" {{ $cur_sort=='latest'?'selected':'' }}>{{\App\CPU\translate('Latest')}}</option>
                                             <option
-                                                value="low-high">{{\App\CPU\translate('Low_to_High')}} {{\App\CPU\translate('Price')}} </option>
+                                                value="low-high" {{ $cur_sort=='low-high'?'selected':'' }}>{{\App\CPU\translate('Low_to_High')}} {{\App\CPU\translate('Price')}} </option>
                                             <option
-                                                value="high-low">{{\App\CPU\translate('High_to_Low')}} {{\App\CPU\translate('Price')}}</option>
+                                                value="high-low" {{ $cur_sort=='high-low'?'selected':'' }}>{{\App\CPU\translate('High_to_Low')}} {{\App\CPU\translate('Price')}}</option>
                                             <option
-                                                value="a-z">{{\App\CPU\translate('A_to_Z')}} {{\App\CPU\translate('Order')}}</option>
+                                                value="a-z" {{ $cur_sort=='a-z'?'selected':'' }}>{{\App\CPU\translate('A_to_Z')}} {{\App\CPU\translate('Order')}}</option>
                                             <option
-                                                value="z-a">{{\App\CPU\translate('Z_to_A')}} {{\App\CPU\translate('Order')}}</option>
+                                                value="z-a" {{ $cur_sort=='z-a'?'selected':'' }}>{{\App\CPU\translate('Z_to_A')}} {{\App\CPU\translate('Order')}}</option>
                                         </select>
                                     </div>
                                 </form>
@@ -651,6 +638,41 @@
                         </div>
                     </div>
                 {{-- </div> --}}
+
+                {{-- Active filter chips --}}
+                <?php
+                    $activeFilterLabel = null;
+                    switch ($data['data_from'] ?? '') {
+                        case 'brand':         $activeFilterLabel = \App\CPU\translate('Brand').': '.($brand_name ?? ''); break;
+                        case 'category':      $activeFilterLabel = \App\CPU\translate('Category').': '.($brand_name ?? ''); break;
+                        case 'search':        $activeFilterLabel = \App\CPU\translate('Search').': '.($data['name'] ?? ''); break;
+                        case 'best-selling':  $activeFilterLabel = \App\CPU\translate('best_selling_product'); break;
+                        case 'top-rated':     $activeFilterLabel = \App\CPU\translate('top_rated'); break;
+                        case 'most-favorite': $activeFilterLabel = \App\CPU\translate('most_favorite'); break;
+                        case 'featured_deal': $activeFilterLabel = \App\CPU\translate('featured_deal'); break;
+                        case 'discounted':    $activeFilterLabel = \App\CPU\translate('Discounted'); break;
+                    }
+                    $hasPriceFilter = !empty($data['min_price']) || !empty($data['max_price']);
+                ?>
+                @if(!empty($activeFilterLabel) || !empty($hasPriceFilter))
+                    <div class="ind-filter-chips">
+                        <span class="ind-chips-label">{{\App\CPU\translate('Active filters')}}:</span>
+                        @if(!empty($activeFilterLabel))
+                            <span class="ind-chip">
+                                {{ $activeFilterLabel }}
+                                <a href="{{route('products',['data_from'=>'latest','page'=>1])}}" class="ind-chip-x" aria-label="{{\App\CPU\translate('Remove')}}">&times;</a>
+                            </span>
+                        @endif
+                        @if(!empty($hasPriceFilter))
+                            <span class="ind-chip">
+                                {{\App\CPU\translate('Price')}}: {{ $data['min_price'] ?? 0 }} &ndash; {{ $data['max_price'] ?? '' }}
+                                <a href="{{route('products',['id'=>$data['id'],'data_from'=>$data['data_from'],'page'=>1])}}" class="ind-chip-x" aria-label="{{\App\CPU\translate('Remove')}}">&times;</a>
+                            </span>
+                        @endif
+                        <a href="{{route('products',['data_from'=>'latest','page'=>1])}}" class="ind-chip-clear">{{\App\CPU\translate('Clear all')}}</a>
+                    </div>
+                @endif
+
                 @if (count($products) > 0)
                     <div class="row mt-3" id="ajax-products">
                         @include('web-views.products._ajax-products',['products'=>$products,'decimal_point_settings'=>$decimal_point_settings])

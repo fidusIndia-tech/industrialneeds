@@ -356,7 +356,11 @@ class WebController extends Controller
 
     public function order_placed()
     {
-        return view('web-views.checkout-complete');
+        $order = null;
+        if (auth('customer')->check()) {
+            $order = Order::where('customer_id', auth('customer')->id())->latest('id')->first();
+        }
+        return view('web-views.checkout-complete', compact('order'));
     }
 
     public function shop_cart(Request $request)

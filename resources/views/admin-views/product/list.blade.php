@@ -20,7 +20,7 @@
             <div class="card">
                 <div class="card-header">
                     <div class="row flex-between justify-content-between align-items-center flex-grow-1">
-                        <div class="col-12 mb-1 col-md-4">
+                        <div class="col-12 mb-1 col-md-3">
                             <h5 class="flex-between">
                                 <div>{{\App\CPU\translate('product_table')}} ({{ $pro->total() }})</div>
                             </h5>
@@ -43,13 +43,20 @@
                             </form>
                             <!-- End Search -->
                         </div>
-                        <div class="col-12 col-md-3">
-                            @if (!isset($request_status))
-                                <a href="{{route('admin.product.add-new')}}" class="btn btn-primary  float-right">
-                                    <i class="tio-add-circle"></i>
-                                    <span class="text">{{\App\CPU\translate('Add new product')}}</span>
+                        <div class="col-12 col-md-4">
+                            <div class="d-flex flex-wrap justify-content-md-end justify-content-start align-items-center" style="gap: 8px;">
+                                <a href="{{route('admin.product.bulk-export')}}" class="btn btn-success text-nowrap"
+                                   title="{{\App\CPU\translate('Export full product data as Excel for editing and re-import')}}">
+                                    <i class="tio-download-to"></i>
+                                    <span class="text">{{\App\CPU\translate('Export Full Product Data')}}</span>
                                 </a>
-                            @endif
+                                @if (!isset($request_status))
+                                    <a href="{{route('admin.product.add-new')}}" class="btn btn-primary text-nowrap">
+                                        <i class="tio-add-circle"></i>
+                                        <span class="text">{{\App\CPU\translate('Add new product')}}</span>
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 </div>

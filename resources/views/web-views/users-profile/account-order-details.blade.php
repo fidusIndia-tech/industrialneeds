@@ -171,6 +171,42 @@
             }
 
         }
+
+        /* ---- Order tracking timeline ---- */
+        .track-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; }
+        .track-card .track-head { background: #082A45; color: #fff; padding: 14px 18px; border-radius: 8px 8px 0 0; font-weight: 700; }
+        .track-body { padding: 26px 18px 14px; }
+        .track-timeline { display: flex; flex-wrap: nowrap; position: relative; }
+        .track-step { flex: 1 1 0; text-align: center; position: relative; padding-top: 36px; min-width: 0; }
+        .track-step::before { content: ""; position: absolute; top: 15px; left: -50%; width: 100%; height: 3px; background: #E2E8F0; z-index: 1; }
+        .track-step:first-child::before { display: none; }
+        .track-icon { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; border-radius: 50%; background: #E2E8F0; color: #94A3B8; display: flex; align-items: center; justify-content: center; font-size: 13px; z-index: 2; border: 3px solid #fff; box-shadow: 0 0 0 1px #E2E8F0; }
+        .track-label { font-size: 12px; color: #64748B; margin-top: 8px; line-height: 1.25; padding: 0 2px; }
+        .track-done .track-icon { background: #16A34A; color: #fff; box-shadow: 0 0 0 1px #16A34A; }
+        .track-done::before { background: #16A34A; }
+        .track-current .track-icon { background: #FFC400; color: #082A45; box-shadow: 0 0 0 1px #FFC400; }
+        .track-current .track-label { color: #082A45; font-weight: 700; }
+        .track-current::before { background: #16A34A; }
+        .track-upcoming .track-icon { background: #F5F7FA; color: #94A3B8; }
+
+        .track-terminal { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 8px; }
+        .track-terminal .t-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex: 0 0 40px; }
+
+        .shipment-card { background: #F5F7FA; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; }
+        .shipment-card .s-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #E2E8F0; font-size: 13px; }
+        .shipment-card .s-row:last-child { border-bottom: none; }
+        .shipment-card .s-label { color: #64748B; }
+        .shipment-card .s-value { color: #111827; font-weight: 600; text-align: right; }
+        .btn-track-ship { background: #082A45; color: #fff; border: none; }
+        .btn-track-ship:hover { background: #0B4F8A; color: #fff; }
+
+        @media (max-width: 767px) {
+            .track-timeline { flex-direction: column; }
+            .track-step { flex: none; text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}}; padding-top: 0; padding-{{Session::get('direction') === "rtl" ? 'right' : 'left'}}: 44px; min-height: 48px; }
+            .track-step::before { top: 0; {{Session::get('direction') === "rtl" ? 'right' : 'left'}}: 15px; left: auto; width: 3px; height: 100%; }
+            .track-icon { top: 2px; {{Session::get('direction') === "rtl" ? 'right' : 'left'}}: 0; left: auto; transform: none; }
+            .track-label { margin-top: 6px; }
+        }
     </style>
 @endpush
 
@@ -192,6 +228,128 @@
                         </a>
                     </div>
                 </div>
+
+                @php
+                    $statusFlow   = \App\Model\Order::STATUS_FLOW;
+                    $isTerminal   = \App\Model\Order::isTerminalStatus($order->order_status);
+                    $progress     = \App\Model\Order::timelineProgress($order->order_status);
+                    $statusColors = \App\Model\Order::statusColors($order->order_status);
+                    $history      = $order->statusHistory;
+                    $courier      = $order->delivery_service_name;
+                    $trackingNo   = $order->third_party_delivery_tracking_id;
+                    $trackingUrl  = optional($history->whereNotNull('tracking_url')->last())->tracking_url;
+                    $expectedDate = optional($history->whereNotNull('expected_delivery_date')->last())->expected_delivery_date;
+                    $hasShipment  = $courier || $trackingNo || $trackingUrl || $expectedDate;
+                @endphp
+
+                {{-- Order tracking timeline --}}
+                <div class="track-card mb-4">
+                    <div class="track-head">{{\App\CPU\translate('Order Status')}}</div>
+                    <div class="track-body">
+                        @if($isTerminal)
+                            <div class="track-terminal" style="background: {{$statusColors['bg']}};">
+                                <div class="t-icon" style="background: {{$statusColors['text']}}; color: #fff;">
+                                    <i class="fa fa-info-circle"></i>
+                                </div>
+                                <div>
+                                    <div style="font-weight: 700; color: {{$statusColors['text']}}; font-size: 16px;">
+                                        {{\App\CPU\translate($statusColors['label'])}}
+                                    </div>
+                                    <small class="text-muted">
+                                        @if($order->order_status == 'canceled')
+                                            {{\App\CPU\translate('This order has been cancelled.')}}
+                                        @elseif($order->order_status == 'returned')
+                                            {{\App\CPU\translate('This order has been returned.')}}
+                                        @elseif($order->order_status == 'refunded')
+                                            {{\App\CPU\translate('This order has been refunded.')}}
+                                        @else
+                                            {{\App\CPU\translate('This order could not be completed.')}}
+                                        @endif
+                                    </small>
+                                </div>
+                            </div>
+                        @else
+                            <div class="track-timeline">
+                                @foreach($statusFlow as $key => $label)
+                                    @php($state = $loop->index < $progress ? 'done' : ($loop->index == $progress ? 'current' : 'upcoming'))
+                                    <div class="track-step track-{{$state}}">
+                                        <div class="track-icon">
+                                            @if($state == 'done')
+                                                <i class="fa fa-check"></i>
+                                            @else
+                                                {{$loop->iteration}}
+                                            @endif
+                                        </div>
+                                        <div class="track-label">{{\App\CPU\translate($label)}}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Shipment details --}}
+                <div class="mb-4">
+                    <h5 class="mb-2" style="color: #082A45; font-weight: 700;">{{\App\CPU\translate('Shipment Details')}}</h5>
+                    @if($hasShipment)
+                        <div class="shipment-card">
+                            @if($courier)
+                                <div class="s-row">
+                                    <span class="s-label">{{\App\CPU\translate('Courier Partner')}}</span>
+                                    <span class="s-value">{{$courier}}</span>
+                                </div>
+                            @endif
+                            @if($trackingNo)
+                                <div class="s-row">
+                                    <span class="s-label">{{\App\CPU\translate('Tracking Number')}}</span>
+                                    <span class="s-value">{{$trackingNo}}</span>
+                                </div>
+                            @endif
+                            @if($expectedDate)
+                                <div class="s-row">
+                                    <span class="s-label">{{\App\CPU\translate('Expected Delivery')}}</span>
+                                    <span class="s-value">{{\Carbon\Carbon::parse($expectedDate)->format('d M, Y')}}</span>
+                                </div>
+                            @endif
+                            @if($trackingUrl)
+                                <div class="mt-3">
+                                    <a href="{{$trackingUrl}}" target="_blank" rel="noopener"
+                                       class="btn btn-track-ship btn-sm">
+                                        <i class="fa fa-truck mr-1"></i> {{\App\CPU\translate('Track Shipment')}}
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        <div class="shipment-card text-muted" style="font-size: 13px;">
+                            {{\App\CPU\translate('Shipment details will be updated once your order is dispatched.')}}
+                        </div>
+                    @endif
+                </div>
+
+                @if($history && $history->count() > 0)
+                    <div class="mb-4">
+                        <h5 class="mb-2" style="color: #082A45; font-weight: 700;">{{\App\CPU\translate('Order Updates')}}</h5>
+                        <div class="shipment-card">
+                            @foreach($history->sortByDesc('id') as $h)
+                                @php($hMeta = \App\Model\Order::statusColors($h->status))
+                                <div class="s-row" style="align-items: flex-start;">
+                                    <span>
+                                        <span class="badge text-capitalize" style="background: {{$hMeta['bg']}}; color: {{$hMeta['text']}};">
+                                            {{\App\CPU\translate($hMeta['label'])}}
+                                        </span>
+                                        @if($h->note)
+                                            <span class="d-block text-muted mt-1" style="font-size: 12px;">{{$h->note}}</span>
+                                        @endif
+                                    </span>
+                                    <span class="s-label" style="white-space: nowrap;">
+                                        {{date('d M, Y', strtotime($h->created_at))}}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
 
                 <div class="card box-shadow-sm">

@@ -15,10 +15,20 @@ class HideExpensiveProducts extends Command
         {--threshold=50000 : Selling price threshold in the system default currency (INR). Products strictly above this become inactive.}
         {--execute : Actually apply the update. Without this flag the command runs as a dry run.}';
 
-    protected $description = 'Soft-hide live products whose selling price exceeds the given INR threshold (default 50000) by setting status=0. Dry-run by default. Affected IDs are logged so the change can be reversed.';
+    protected $description = '[DISABLED] Previously soft-hid live products priced above an INR threshold by setting status=0. Retired after products:make-all-live re-published everything; left in place for reference only.';
 
     public function handle()
     {
+        // This command is intentionally disabled. It was a one-off filter that set
+        // status=0 on products priced above ~INR 50000. All affected products have
+        // since been re-published (see products:make-all-live and
+        // storage/logs/products_make_all_live.log). Running it again would re-hide
+        // them, so it is now a hard no-op.
+        $this->error('products:hide-expensive-products is DISABLED and will not run.');
+        $this->line('If you genuinely need to re-hide products, restore this command from version control first.');
+        return 1;
+
+        // ----- original implementation kept below for reference (unreachable) -----
         $table = 'products';
         $priceColumn = 'unit_price';
         $statusColumn = 'status';

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Country;
+use App\Exports\FullProductExport;
 use App\CPU\BackEndHelper;
 use App\CPU\Helpers;
 use App\CPU\ImageManager;
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Rap2hpoutre\FastExcel\FastExcel;
+use Maatwebsite\Excel\Facades\Excel;
 use function App\CPU\translate;
 use App\Model\Cart;
 use App\ShippingCostByCountry;
@@ -832,7 +834,14 @@ class ProductController extends BaseController
         $skipped_rows = 0;
         
         // NEW: Added our new URL columns to the allowed-empty list
-        $skip_empty_check = ['youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls' , 'product_code']; 
+        $skip_empty_check = [
+            'youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls', 'product_code',
+            // Reference-only columns produced by the Full Product Export. The importer ignores
+            // them when inserting, so they are allowed to be blank without skipping the row.
+            'id', 'slug', 'brand_name', 'category_name', 'sub_category_name', 'sub_sub_category_name',
+            'selling_price', 'status_text', 'featured_text', 'meta_title', 'meta_description', 'created_at', 'updated_at',
+            'details_html', 'details_plain_text',
+        ];
         $valid_sub_sub_categories = \App\Model\Category::where('position', 2)->pluck('id')->toArray();
 
         // NEW: Grab all existing part numbers to check for duplicates instantly
@@ -905,7 +914,9 @@ class ProductController extends BaseController
                 'discount' => $collection['discount'],
                 'discount_type' => $collection['discount_type'],
                 'current_stock' => $collection['current_stock'],
-                'details' => $collection['details'],
+                // Full export splits details into details_html (raw) + details_plain_text (readable).
+                // Accept details_html first, then fall back to the original 'details' template column.
+                'details' => $collection['details_html'] ?? $collection['details'] ?? '',
                 'video_provider' => 'youtube',
                 'video_url' => $collection['youtube_video_url'],
                 // NEW: Map the URL columns from Excel
@@ -1023,6 +1034,20 @@ class ProductController extends BaseController
 
         Toastr::success(count($formatted_data) . ' - Products and images imported successfully!');
         return redirect()->route('admin.product.list', ['in_house']);
+    }
+
+    /**
+     * Full product data export. Produces a formatted .xlsx whose columns match the
+     * bulk-import headers (so the file can be edited and re-imported) plus extra
+     * human-readable reference columns. Read-only: no product is modified.
+     */
+    public function bulk_export_data(Request $request)
+    {
+        set_time_limit(0);
+
+        $file_name = 'full_products_export_' . now()->format('Y_m_d_H_i') . '.xlsx';
+
+        return Excel::download(new FullProductExport(), $file_name);
     }
 
     public function barcode(Request $request, $id)

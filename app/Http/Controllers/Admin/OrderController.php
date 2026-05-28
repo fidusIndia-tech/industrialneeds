@@ -11,6 +11,7 @@ use App\Model\BusinessSetting;
 use App\Model\DeliveryMan;
 use App\Model\Order;
 use App\Model\OrderDetail;
+use App\Model\OrderStatusHistory;
 use App\Model\OrderTransaction;
 use App\Model\Product;
 use App\Model\Seller;
@@ -228,6 +229,101 @@ class OrderController extends Controller
         }
 
         return response()->json($request->order_status);
+    }
+
+    /**
+     * Full status update from the admin order-details form: records a row in
+     * order_status_histories AND updates orders.order_status, mirroring the
+     * side-effects of the existing AJAX status() endpoint so behaviour stays
+     * identical. The legacy dropdown/endpoint is left untouched.
+     */
+    public function update_status_history(Request $request)
+    {
+        $request->validate([
+            'id' => 'required',
+            'order_status' => 'required|string',
+        ]);
+
+        $order = Order::find($request->id);
+        if (!$order) {
+            Toastr::error(translate('Order not found'));
+            return back();
+        }
+
+        $new_status = $request->order_status;
+        if (!array_key_exists($new_status, Order::statusMeta())) {
+            Toastr::error(translate('Invalid order status'));
+            return back();
+        }
+
+        // Mirror the existing dropdown guard: delivered requires a paid order.
+        if ($new_status == 'delivered' && $order->payment_status != 'paid') {
+            Toastr::error(translate('Please mark the payment as paid before setting the order to delivered'));
+            return back();
+        }
+
+        $previously_delivered = $order->order_status == 'delivered';
+
+        // Same stock handling the existing AJAX endpoint performs.
+        OrderManager::stock_update_on_order_status_change($order, $new_status);
+
+        $order->order_status = $new_status;
+
+        // Keep the order's own courier columns in sync with what was entered.
+        if ($request->filled('courier_name')) {
+            $order->delivery_type = 'third_party_delivery';
+            $order->delivery_service_name = $request->courier_name;
+            $order->third_party_delivery_tracking_id = $request->tracking_number;
+            $order->delivery_man_id = null;
+        }
+        $order->save();
+
+        // Delivered side-effects, mirrored from status() but guarded so they
+        // never run twice if the order was already delivered.
+        if ($new_status == 'delivered' && !$previously_delivered) {
+            $transaction = OrderTransaction::where(['order_id' => $order['id']])->first();
+            $already_disbursed = isset($transaction) && $transaction['status'] == 'disburse';
+
+            if (!$already_disbursed && $order['seller_id'] != null) {
+                OrderManager::wallet_manage_on_order_status_change($order, 'admin');
+            }
+            OrderDetail::where('order_id', $order->id)->update(['delivery_status' => 'delivered']);
+
+            if (Helpers::get_business_settings('loyalty_point_status') == 1 && $order->payment_status == 'paid') {
+                CustomerManager::create_loyalty_point_transaction($order->customer_id, $order->id, Convert::default($order->order_amount - $order->shipping_cost), 'order_place');
+            }
+        }
+
+        OrderStatusHistory::create([
+            'order_id' => $order->id,
+            'status' => $new_status,
+            'note' => $request->note,
+            'courier_name' => $request->courier_name,
+            'tracking_number' => $request->tracking_number,
+            'tracking_url' => $request->tracking_url,
+            'expected_delivery_date' => $request->expected_delivery_date ?: null,
+            'changed_by' => auth('admin')->check() ? auth('admin')->id() : null,
+            'changed_by_type' => 'admin',
+        ]);
+
+        // Best-effort push notification; no-op for statuses without a configured message.
+        try {
+            if (isset($order->customer)) {
+                $value = Helpers::order_status_update_message($new_status);
+                if ($value) {
+                    Helpers::send_push_notif_to_device($order->customer->cm_firebase_token, [
+                        'title' => translate('Order'),
+                        'description' => $value,
+                        'order_id' => $order['id'],
+                        'image' => '',
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+        }
+
+        Toastr::success(translate('Order status updated successfully'));
+        return back();
     }
 
     public function payment_status(Request $request)

@@ -465,6 +465,102 @@
                         </ul>
                     </div>
                 </div>
+                <!-- Order Status & Tracking -->
+                <div class="card mb-2">
+                    <div class="card-header">
+                        <h4 class="card-header-title">{{\App\CPU\translate('Order Status & Tracking')}}</h4>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{route('admin.orders.update-status-history')}}" method="POST">
+                            @csrf
+                            <input type="hidden" name="id" value="{{$order['id']}}">
+
+                            <div class="form-group">
+                                <label class="font-weight-bold">{{\App\CPU\translate('Order Status')}}</label>
+                                <select name="order_status" class="form-control text-capitalize" required>
+                                    @foreach(\App\Model\Order::selectableStatuses() as $value => $label)
+                                        <option value="{{$value}}" {{$order->order_status == $value ? 'selected' : ''}}>
+                                            {{\App\CPU\translate($label)}}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>{{\App\CPU\translate('Note')}} ({{\App\CPU\translate('optional')}})</label>
+                                <textarea name="note" class="form-control" rows="2" placeholder="{{\App\CPU\translate('Internal / customer-facing note')}}"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>{{\App\CPU\translate('Expected Delivery Date')}} ({{\App\CPU\translate('optional')}})</label>
+                                <input type="date" name="expected_delivery_date" class="form-control">
+                            </div>
+
+                            <hr>
+                            <p class="text-muted mb-2" style="font-size: 12px;">
+                                {{\App\CPU\translate('Courier fields are most relevant for Packed / Shipped / Out for Delivery.')}}
+                            </p>
+
+                            <div class="form-group">
+                                <label>{{\App\CPU\translate('Courier Name')}} ({{\App\CPU\translate('optional')}})</label>
+                                <input type="text" name="courier_name" class="form-control"
+                                       value="{{$order->delivery_service_name}}"
+                                       placeholder="BlueDart / DTDC / Delhivery">
+                            </div>
+
+                            <div class="form-group">
+                                <label>{{\App\CPU\translate('Tracking Number')}} ({{\App\CPU\translate('optional')}})</label>
+                                <input type="text" name="tracking_number" class="form-control"
+                                       value="{{$order->third_party_delivery_tracking_id}}">
+                            </div>
+
+                            <div class="form-group">
+                                <label>{{\App\CPU\translate('Tracking URL')}} ({{\App\CPU\translate('optional')}})</label>
+                                <input type="url" name="tracking_url" class="form-control"
+                                       placeholder="https://...">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block">
+                                {{\App\CPU\translate('Update Status')}}
+                            </button>
+                        </form>
+
+                        @if($order->statusHistory && $order->statusHistory->count() > 0)
+                            <hr>
+                            <h5 class="mb-3">{{\App\CPU\translate('Status History')}}</h5>
+                            <ul class="list-unstyled mb-0">
+                                @foreach($order->statusHistory as $history)
+                                    @php($meta = \App\Model\Order::statusColors($history->status))
+                                    <li class="mb-3 pb-2 border-bottom">
+                                        <span class="badge text-capitalize"
+                                              style="background: {{$meta['bg']}}; color: {{$meta['text']}};">
+                                            {{\App\CPU\translate($meta['label'])}}
+                                        </span>
+                                        <small class="text-muted float-right">
+                                            {{date('d M, Y h:i A', strtotime($history->created_at))}}
+                                        </small>
+                                        @if($history->note)
+                                            <p class="mb-1 mt-1" style="font-size: 13px;">{{$history->note}}</p>
+                                        @endif
+                                        @if($history->courier_name || $history->tracking_number)
+                                            <small class="d-block text-muted">
+                                                {{$history->courier_name}}
+                                                @if($history->tracking_number) — {{$history->tracking_number}} @endif
+                                            </small>
+                                        @endif
+                                        @if($history->expected_delivery_date)
+                                            <small class="d-block text-muted">
+                                                {{\App\CPU\translate('Expected')}}: {{date('d M, Y', strtotime($history->expected_delivery_date))}}
+                                            </small>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
+                </div>
+                <!-- End Order Status & Tracking -->
+
                 <!-- Card -->
                 <div class="card">
                     <!-- Header -->

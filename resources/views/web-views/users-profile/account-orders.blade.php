@@ -132,22 +132,19 @@
                                 <tr>
                                     <td class="bodytr font-weight-bold">
                                         {{\App\CPU\translate('ID')}}: {{$order['id']}}
+                                        <small class="d-block text-muted font-weight-normal">
+                                            {{$order->details_count ?? $order->details->count()}} {{\App\CPU\translate('item(s)')}}
+                                        </small>
                                     </td>
                                     <td class="bodytr orderDate"><span class="">{{$order['created_at']}}</span></td>
                                     <td class="bodytr">
-                                        @if($order['order_status']=='failed' || $order['order_status']=='canceled')
-                                            <span class="badge badge-danger text-capitalize">
-                                                {{\App\CPU\translate($order['order_status'])}}
-                                            </span>
-                                        @elseif($order['order_status']=='confirmed' || $order['order_status']=='processing' || $order['order_status']=='delivered')
-                                            <span class="badge badge-success text-capitalize">
-                                                {{\App\CPU\translate($order['order_status'])}}
-                                            </span>
-                                        @else
-                                            <span class="badge badge-info text-capitalize">
-                                                {{\App\CPU\translate($order['order_status'])}}
-                                            </span>
-                                        @endif
+                                        @php($m = \App\Model\Order::statusColors($order['order_status']))
+                                        <span class="badge text-capitalize" style="background: {{$m['bg']}}; color: {{$m['text']}};">
+                                            {{\App\CPU\translate($m['label'])}}
+                                        </span>
+                                        <small class="d-block mt-1 text-capitalize text-{{$order['payment_status']=='paid' ? 'success' : 'muted'}}">
+                                            {{\App\CPU\translate($order['payment_status'])}}
+                                        </small>
                                     </td>
                                     <td class="bodytr">
                                         {{\App\CPU\Helpers::currency_converter($order['order_amount'])}}
@@ -156,6 +153,10 @@
                                         <a href="{{ route('account-order-details', ['id'=>$order->id]) }}"
                                            class="btn btn-primary p-2">
                                             <i class="fa fa-eye"></i> {{\App\CPU\translate('view')}}
+                                        </a>
+                                        <a href="{{route('track-order.result',['order_id'=>$order['id'],'from_order_details'=>1])}}"
+                                           class="btn btn-secondary p-2 top-margin" style="color:#fff;">
+                                            <i class="fa fa-truck"></i> {{\App\CPU\translate('track')}}
                                         </a>
                                         @if($order['payment_method']=='cash_on_delivery' && $order['order_status']=='pending')
                                             <a href="javascript:"

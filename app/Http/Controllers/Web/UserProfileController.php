@@ -177,7 +177,7 @@ class UserProfileController extends Controller
 
     public function account_oder()
     {
-        $orders = Order::where('customer_id', auth('customer')->id())->orderBy('id','DESC')->paginate(15);
+        $orders = Order::withCount('details')->where('customer_id', auth('customer')->id())->orderBy('id','DESC')->paginate(15);
         return view('web-views.users-profile.account-orders', compact('orders'));
     }
 

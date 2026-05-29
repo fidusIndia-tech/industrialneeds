@@ -2001,4 +2001,5 @@
   'Chat on WhatsApp' => 'Chat On WhatsApp',
   'Export full product data as Excel for editing and re-import' => 'Export Full Product Data As Excel For Editing And Re-import',
   'Export Full Product Data' => 'Export Full Product Data',
+  'Customer Feedback' => 'Customer Feedback',
 );

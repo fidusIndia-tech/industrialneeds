@@ -731,6 +731,17 @@
                                 </li>
                                       <!-- End Product Inquiries -->
 
+                                <!-- Customer Feedback Menu Item -->
+                                <li class="navbar-vertical-aside-has-menu {{Request::is('admin/feedbacklist')?'active':''}}">
+                                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.feedbacklist')}}">
+                                        <i class="tio-comment nav-icon"></i>
+                                        <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                            {{\App\CPU\translate('Customer Feedback')}}
+                                        </span>
+                                    </a>
+                                </li>
+                                <!-- End Customer Feedback -->
+
                                 <li class="navbar-vertical-aside-has-menu {{Request::is('admin/contact*')?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link"
                                     href="{{route('admin.contact.list')}}">

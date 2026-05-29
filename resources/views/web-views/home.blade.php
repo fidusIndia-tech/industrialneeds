@@ -1039,36 +1039,6 @@
         </div>
     </div>
 
-    {{-- Testimonials --}}
-    @if(count($feedback) > 0)
-    <section class="container rtl mb-5">
-        <div class="section-header section-header--stacked">
-            <div>
-                <h2 class="section-title">{{ \App\CPU\translate('What our customers say') }}</h2>
-                <p class="section-subtitle">{{ \App\CPU\translate('Trusted by businesses for reliable industrial sourcing') }}</p>
-            </div>
-        </div>
-        <div class="testimonial-wrapper ind-testimonial-wrapper">
-            @foreach ($feedback as $item)
-                <div class="testimonial">
-                    <div class="ind-testimonial-card">
-                        <span class="ind-testimonial-quote">&ldquo;</span>
-                        <p class="ind-testimonial-text">{{ $item->feedback }}</p>
-                        <div class="ind-testimonial-author">
-                            <img src="{{asset("public/assets/front-end/png/testimonial.png")}}" alt="{{ $item->full_name }}">
-                            <div class="ind-testimonial-meta">
-                                <span class="ind-testimonial-name">{{ $item->full_name }}</span>
-                                <span class="ind-testimonial-company">{{ $item->company_name }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </section>
-    @endif
-
-
     {{-- Floating WhatsApp chat button (homepage only) --}}
     {{-- TEMPORARY testing number — replace later with the official company WhatsApp Business number. --}}
     {{-- International format only: country code + 10-digit number, no +, spaces, brackets or dashes. --}}
@@ -1093,21 +1063,6 @@
     {{-- Owl Carousel --}}
 
     <script src="{{asset('public/assets/front-end')}}/js/owl.carousel.min.js"></script>
-<script>
-  $('.testimonial-wrapper').slick({
-            slidesToShow: 3,
-            slidesToScroll: 1,
-            autoplay: true,
-            autoplaySpeed: 3500,
-            arrows: false,
-            dots: true,
-            infinite: true,
-            responsive: [
-                { breakpoint: 992, settings: { slidesToShow: 2 } },
-                { breakpoint: 576, settings: { slidesToShow: 1 } }
-            ]
-});
-</script>
     <script>
         $('#flash-deal-slider').owlCarousel({
             loop: false,

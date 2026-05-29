@@ -111,10 +111,9 @@ class WebController extends Controller
             $topRated = $bestSellProduct;
         }
 
-        $feedback = Customerfeedback::where('status', 1)->get();
         $deal_of_the_day = DealOfTheDay::join('products', 'products.id', '=', 'deal_of_the_days.product_id')->select('deal_of_the_days.*', 'products.unit_price')->where('products.status', 1)->where('deal_of_the_days.status', 1)->first();
 
-        return view('web-views.home', compact('featured_products', 'topRated', 'bestSellProduct', 'latest_products', 'categories', 'brands', 'deal_of_the_day', 'top_sellers', 'home_categories','feedback'));
+        return view('web-views.home', compact('featured_products', 'topRated', 'bestSellProduct', 'latest_products', 'categories', 'brands', 'deal_of_the_day', 'top_sellers', 'home_categories'));
     }
 
     public function flash_deals($id)
@@ -533,8 +532,7 @@ class WebController extends Controller
             $countWishlist = Wishlist::where('product_id', $product->id)->count();
             $relatedProducts = Product::with(['reviews'])->active()->where('category_ids', $product->category_ids)->where('id', '!=', $product->id)->limit(12)->get();
             $deal_of_the_day = DealOfTheDay::where('product_id', $product->id)->where('status', 1)->first();
-            $feedbackcustomer = Customerfeedback::where('status', 1)->get();
-            return view('web-views.products.details', compact('product', 'countWishlist', 'countOrder', 'relatedProducts', 'deal_of_the_day','feedbackcustomer'));
+            return view('web-views.products.details', compact('product', 'countWishlist', 'countOrder', 'relatedProducts', 'deal_of_the_day'));
         }
 
         Toastr::error(translate('not_found'));
@@ -1090,6 +1088,7 @@ class WebController extends Controller
         $Customerfeedback->company_name = $request->company_name;
         $Customerfeedback->phone_no = $request->phone_no;
         $Customerfeedback->feedback = $request->feedback;
+        $Customerfeedback->status = 0;
         $Customerfeedback->save();
         Toastr::success(translate('Your feedback Send Successfully'));
         return back();

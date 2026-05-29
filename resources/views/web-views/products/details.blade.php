@@ -1113,105 +1113,7 @@
             @endif
         </div>
     </div>
-	  <style>
-    /* enable for grid layout.
-.testimonial-wrapper {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-gap: 30px;
-  text-align: center;
-}
-*/
-.testimonial-bubble {
-  position: relative;
-  background-color:#fbfbfb;
-  border-radius: 20px;
-  padding: 30px;
-  text-align: center;
-  box-shadow: 0 0 10px 0 #ddd;
-  margin: 15px;
-}
 
-.testimonial-bubble:before {
-  content: "";
-  position: absolute;
-
-  left: 50%;
-  transform: translateX(-50%);
-  border-style: solid;
-
-  border-color: #ddd transparent transparent transparent;
-}
-
-.testimonial-text {
-  margin-bottom: 20px;
-}
-
-.testimonial-rating {
-  font-size: 18px;
-  color: #999;
-  margin-bottom: 20px;
-}
-
-.checked {
-  color: #FFD700;
-}
-
-.testimonial-author {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 20px;
-}
-
-.testimonial-author img {
-  border-radius: 50%;
-  margin-bottom: 10px;
-  width: 60px;
-  height: 60px;
-}
-
-.testimonial-author h3 {
-  font-size: 18px;
-}
-
-.testimonial-author p {
-  font-size: 14px;
-  color: #999;
-  margin-bottom: 0;
-}
-.testimonial-wrapper .slick-prev, .testimonial-wrapper .slick-next{
-    display: none!important;
-}
-</style>
-
-<h1><center>Testimonial</center></h1>
-        
-              <!--  single testimonial end  -->
-             
-              <div class="container">
-                <div class="row justify-content-center">
-                    <div class="col-md-7">
-                        <div class="testimonial-wrapper">
-                            @foreach ($feedbackcustomer as $items)
-                            <!--  single testimonial  -->
-                            <div class="testimonial">
-                                <div class="testimonial-bubble">
-									<div class="testimonial-author">
-                                    <img src="{{asset("public/assets/front-end/png/testimonial.png")}}">
-                                </div> 
-                                <div class="testimonial-text">
-                                    <p> {{ $items->feedback }}</p>
-                                </div>
-                                <h4>{{ $items->full_name }}</h4>
-                                <p>{{ $items->company_name }}</p>
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-           </div>
                 
     <div class="modal fade rtl" id="show-modal-view" tabindex="-1" role="dialog" aria-labelledby="show-modal-image"
          aria-hidden="true" style="text-align: {{Session::get('direction') === "rtl" ? 'right' : 'left'}};">
@@ -1283,40 +1185,6 @@
             $('#show-modal-view').modal('toggle')
         }
     </script>
-	<script>
-	 $('.testimonial-wrapper').slick({
-            autoplay:true,
-            autoplayTimeout:1000,
-            autoplayHoverPause:false,
-            loop:true,
-            nav:false,
-            navigation : false,
-            //navText: ['<i class="fa fa-angle-left" aria-hidden="true"></i>','<i class="fa fa-angle-right" aria-hidden="true"></i>'],
-            responsive:{
-
-                0:{
-
-                    items:1
-                },
-                600:{
-
-                    items:3
-                },
-                1000:{
-                    items:6
-                },
-                1600:{
-
-                    items:8
-                },
-                1900:{
-
-                    items:10
-                }
-
-            }
-});
-	</script>
     <script>
         $( document ).ready(function() {
             load_review();

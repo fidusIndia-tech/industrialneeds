@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Country;
 use App\Exports\FullProductExport;
 use App\CPU\BackEndHelper;
+use App\CPU\BulkImportHelper;
+use App\CPU\BulkImportProcessor;
 use App\CPU\Helpers;
+use App\Model\ProductImportJob;
+use Illuminate\Support\Facades\Cache;
 use App\CPU\ImageManager;
 use App\Http\Controllers\BaseController;
 use App\Model\Brand;
@@ -812,12 +816,109 @@ class ProductController extends BaseController
 
    public function bulk_import_index()
     {
-        session()->forget('product_import_data'); 
+        session()->forget('product_import_data');
+        $this->bulk_import_cleanup_data();
+        $this->bulk_import_cleanup_zip();
         return view('admin-views.product.bulk-import');
+    }
+
+    /**
+     * Resolve the absolute path of the temp NDJSON file that holds the cleaned preview rows
+     * (one product per line), or null if none/missing. Large imports (tens of thousands of
+     * rows) are streamed to disk instead of the session to keep memory and I/O bounded.
+     */
+    private function bulk_import_data_path(): ?string
+    {
+        $token = session()->get('product_import_token');
+        if (!$token) {
+            return null;
+        }
+        $path = 'bulk_import_data/' . $token . '.ndjson';
+        return Storage::disk('local')->exists($path) ? Storage::disk('local')->path($path) : null;
+    }
+
+    /** Delete the temp preview-data file (if any) and drop its session token. */
+    private function bulk_import_cleanup_data(): void
+    {
+        $token = session()->get('product_import_token');
+        if ($token) {
+            $path = 'bulk_import_data/' . $token . '.ndjson';
+            if (Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+        }
+        session()->forget('product_import_token');
+    }
+
+    /**
+     * Delete the temporary product-images ZIP stashed between the preview and confirm steps
+     * (if any) and drop its session token. Safe to call when nothing is stashed.
+     */
+    private function bulk_import_cleanup_zip(): void
+    {
+        $token = session()->get('product_import_zip');
+        if ($token) {
+            $path = 'bulk_import_zip/' . $token . '.zip';
+            if (Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+        }
+        session()->forget('product_import_zip');
+    }
+
+    /**
+     * Resolve the absolute filesystem path of the stashed ZIP, or null if none/missing.
+     */
+    private function bulk_import_zip_path(): ?string
+    {
+        $token = session()->get('product_import_zip');
+        if (!$token) {
+            return null;
+        }
+        $path = 'bulk_import_zip/' . $token . '.zip';
+        return Storage::disk('local')->exists($path) ? Storage::disk('local')->path($path) : null;
+    }
+
+    /**
+     * Combine the file-provided details with the descriptive text extracted from the product title.
+     * Keeps any existing details and appends the extracted block so no information is lost.
+     */
+    private function bulk_import_merge_details(?string $existing, ?string $extracted): string
+    {
+        $existing = trim((string)$existing);
+        $extracted = trim((string)$extracted);
+        if ($extracted === '') {
+            return $existing;
+        }
+        if ($existing === '') {
+            return $extracted;
+        }
+        return $existing . "\n\n" . $extracted;
+    }
+
+    /**
+     * True if any of the comma-separated filenames is present in the ZIP basename set.
+     */
+    private function bulk_import_any_zip_file(string $commaSeparated, array $zipBaseNames): bool
+    {
+        foreach (explode(',', $commaSeparated) as $f) {
+            $f = trim($f);
+            if ($f !== '' && isset($zipBaseNames[BulkImportHelper::fileMatchKey($f)])) {
+                return true;
+            }
+        }
+        return false;
     }
 
   public function bulk_import_preview(Request $request)
     {
+        // Large sheets (tens of thousands of rows) need room and time to parse.
+        set_time_limit(0);
+        $memLimit = (string)ini_get('memory_limit');
+        if (strpos($memLimit, '-1') === false && (int)preg_replace('/[^0-9]/', '', $memLimit) < 1024) {
+            @ini_set('memory_limit', '1024M'); // give large sheets room; leave "unlimited" alone
+        }
+
         try {
             $collections = (new FastExcel)->import($request->file('products_file'));
         } catch (\Exception $exception) {
@@ -825,215 +926,537 @@ class ProductController extends BaseController
             return back();
         }
 
-        $valid_brands = \App\Model\Brand::pluck('id')->toArray();
-        $valid_categories = \App\Model\Category::where('position', 0)->pluck('id')->toArray();
-        $valid_sub_categories = \App\Model\Category::where('position', 1)->pluck('id')->toArray();
-        $valid_sub_sub_categories = \App\Model\Category::where('position', 2)->pluck('id')->toArray();
+        // Always start from a clean slate for any previous run's temp data + images ZIP.
+        $this->bulk_import_cleanup_data();
+        $this->bulk_import_cleanup_zip();
 
-        $data = [];
-        $skipped_rows = 0;
-        
-        // NEW: Added our new URL columns to the allowed-empty list
-        $skip_empty_check = [
-            'youtube_video_url', 'details', 'sub_category_id', 'sub_sub_category_id', 'thumbnail_url', 'gallery_urls', 'product_code',
-            // Reference-only columns produced by the Full Product Export. The importer ignores
-            // them when inserting, so they are allowed to be blank without skipping the row.
-            'id', 'slug', 'brand_name', 'category_name', 'sub_category_name', 'sub_sub_category_name',
-            'selling_price', 'status_text', 'featured_text', 'meta_title', 'meta_description', 'created_at', 'updated_at',
-            'details_html', 'details_plain_text',
+        // Stash the uploaded images ZIP (if any) so the confirm step can read it.
+        // A broken/unreadable ZIP must NOT block the product import — images just fall back.
+        $zipBaseNames = [];  // lower(basename) => true  (for preview "source" labels)
+        $zipStems = [];      // lower(stem) => true
+        if ($request->hasFile('images_zip')) {
+            $token = uniqid('zip_', true);
+            $request->file('images_zip')->storeAs('bulk_import_zip', $token . '.zip', 'local');
+            session()->put('product_import_zip', $token);
+
+            $absPath = $this->bulk_import_zip_path();
+            $zip = new \ZipArchive();
+            if ($absPath && $zip->open($absPath) === true) {
+                foreach (BulkImportProcessor::zipEntries($zip) as $entry) {
+                    $zipBaseNames[$entry['base']] = true;
+                    $zipStems[$entry['stem']] = true;
+                }
+                $zip->close();
+            } else {
+                Toastr::warning('The images ZIP could not be read. Products will still import; ZIP images will be skipped.');
+                $this->bulk_import_cleanup_zip();
+            }
+        }
+
+        // Upload-form defaults. Row values override these; these override hard-coded fallbacks.
+        $defaults = [
+            'brand_name'          => $request->input('default_brand_name'),
+            'supplier_currency'   => $request->input('default_supplier_currency'),
+            'exchange_rate'       => $request->input('default_exchange_rate'),
+            'landed_cost_percent' => $request->input('default_landed_cost_percent'),
+            'margin_percent'      => $request->input('default_margin_percent'),
+            'unit'                => $request->input('default_unit'),
+            'tax'                 => $request->input('default_tax'),
+            'stock'               => $request->input('default_stock'),
+            'refundable'          => $request->input('default_refundable'),
+            'rounding'            => $request->input('price_rounding', 'whole'),
+            'allow_below'         => $request->boolean('allow_price_below_purchase'),
+            'process_images'      => $request->boolean('process_images'),
         ];
-        $valid_sub_sub_categories = \App\Model\Category::where('position', 2)->pluck('id')->toArray();
+        $defaultBrand = trim((string)($defaults['brand_name'] ?? ''));
 
-        // NEW: Grab all existing part numbers to check for duplicates instantly
-        $existing_skus = \Illuminate\Support\Facades\DB::table('products')->whereNotNull('product_code')->pluck('product_code')->toArray();
+        // Brand fallback for rows with no brand value: prefer the form default, else infer from
+        // the supplier file name (e.g. "INT_2025-09-16 Telemecanique.xlsx" -> "Telemecanique").
+        $inferredBrand = '';
+        if ($defaultBrand === '' && $request->hasFile('products_file')) {
+            $inferredBrand = BulkImportHelper::inferBrandFromFilename($request->file('products_file')->getClientOriginalName());
+        }
+        $fallbackBrand = $defaultBrand !== '' ? $defaultBrand : $inferredBrand;
 
-        $data = [];
+        // Valid existing-id sets keyed by category table position (0=main,1=sub,2=sub-sub).
+        $validIds = [
+            0 => Category::where('position', 0)->pluck('id')->map(fn ($i) => (int)$i)->toArray(),
+            1 => Category::where('position', 1)->pluck('id')->map(fn ($i) => (int)$i)->toArray(),
+            2 => Category::where('position', 2)->pluck('id')->map(fn ($i) => (int)$i)->toArray(),
+        ];
+        $valid_brands = Brand::pluck('id')->map(fn ($i) => (int)$i)->toArray();
+        $brandIdToName = Brand::pluck('name', 'id')->toArray(); // for auto-name when brand is given by id
 
-        foreach ($collections as $key => $collection) {
-            $has_empty_required_field = false;
-            foreach ($collection as $col_key => $value) {
-                if ($col_key != "" && $value === "" && !in_array($col_key, $skip_empty_check)) {
-                    $has_empty_required_field = true;
-                    break;
+        // Normalised lookup maps so we can flag "new vs existing" without creating anything yet.
+        $catMap = BulkImportHelper::buildCategoryMap();
+        $brandMap = BulkImportHelper::buildBrandMap();
+
+        // Existing product_code => id, for upsert (update existing) detection.
+        $existing_products = DB::table('products')
+            ->whereNotNull('product_code')->where('product_code', '!=', '')
+            ->pluck('id', 'product_code')->toArray();
+
+        // Stream cleaned rows to a temp NDJSON file (one product per line) instead of the
+        // session — a 70k-row array in the session/memory is the main cause of slow previews.
+        $token = uniqid('imp_', true);
+        Storage::disk('local')->makeDirectory('bulk_import_data');
+        $dataPath = Storage::disk('local')->path('bulk_import_data/' . $token . '.ndjson');
+        $fh = fopen($dataPath, 'w');
+        $validCount = 0;
+
+        $sample = [];                 // only the first rows are kept in memory for the preview table
+        $sampleLimit = 100;
+        $failed_rows = [];            // capped for display (see $failedLimit)
+        $failedLimit = 200;
+        $failed_total = 0;
+        $summary = [
+            'total_rows' => 0, 'to_create' => 0, 'to_update' => 0, 'skipped' => 0,
+            'new_brands' => 0, 'new_l1' => 0, 'new_l2' => 0, 'new_l3' => 0,
+            'calc_purchase' => 0, 'calc_unit' => 0,
+            'default_unit' => 0, 'default_moq' => 0, 'default_stock' => 0,
+            'unit_below_purchase' => 0,
+            'with_image_source' => 0, 'without_image_source' => 0,
+        ];
+        $previewNewBrand = [];
+        $previewNewCat = [];
+
+        // Local helper to record a skipped/failed row without unbounded memory growth.
+        $recordFailure = function ($rowNo, $reason) use (&$failed_rows, &$failed_total, &$summary, $failedLimit) {
+            $summary['skipped']++;
+            $failed_total++;
+            if (count($failed_rows) < $failedLimit) {
+                $failed_rows[] = ['row' => $rowNo, 'reason' => $reason];
+            }
+        };
+
+        foreach ($collections as $index => $collection) {
+            $rowNo = $index + 1;
+            $row = BulkImportHelper::mapRow((array)$collection);
+
+            // Silently skip fully empty (formatting-only) rows — not counted as processed or failed.
+            if (BulkImportHelper::isRowEmpty($row)) {
+                continue;
+            }
+            $summary['total_rows']++;
+
+            $code = trim((string)($row['product_code'] ?? ''));
+
+            // product_code / Part# is the anchor for supplier files (product name is optional).
+            if ($code === '') {
+                $recordFailure($rowNo, 'Missing product code / Part#.');
+                continue;
+            }
+
+            // Required: a resolvable L1 category, via a valid category_id OR a category name.
+            $hasL1Id = isset($row['category_id']) && is_numeric($row['category_id']) && in_array((int)$row['category_id'], $validIds[0], true);
+            $hasL1Name = trim((string)($row['category_name'] ?? '')) !== '';
+            if (!$hasL1Id && !$hasL1Name) {
+                $recordFailure($rowNo, 'Missing category (need a valid category_id or a category / category_name).');
+                continue;
+            }
+
+            // Brand: valid brand_id wins; else a brand name from the row, else the upload-form default brand.
+            $hasBrandId = isset($row['brand_id']) && is_numeric($row['brand_id']) && in_array((int)$row['brand_id'], $valid_brands, true);
+            $brandNameRow = trim((string)($row['brand_name'] ?? ''));
+            if ($hasBrandId) {
+                $brandIdForRow = (int)$row['brand_id'];
+                $brandNameForRow = null;
+                $brandForName = $brandIdToName[$brandIdForRow] ?? '';
+            } else {
+                $brandIdForRow = null;
+                // Priority: row brand > form default brand > brand inferred from the file name.
+                $brandNameForRow = $brandNameRow !== '' ? $brandNameRow : $fallbackBrand;
+                $brandForName = $brandNameForRow;
+            }
+            if (!$hasBrandId && $brandNameForRow === '') {
+                $recordFailure($rowNo, 'Missing brand (no brand/brand_name column, no default brand on the form, and none inferable from the file name).');
+                continue;
+            }
+
+            // Product name: use the column if present, else auto-generate from brand + code + specific category.
+            $name = trim((string)($row['name'] ?? ''));
+            if ($name === '') {
+                $name = BulkImportHelper::generateProductName($brandForName, $code, $row['product_specific_category'] ?? '');
+            }
+            if ($name === '') {
+                // Should not happen (code is present), but never store a blank name.
+                $name = $code;
+            }
+
+            // Clean the title down to just the part/model number; keep the rest of the descriptive
+            // text for the product details so nothing is lost. No-op when no confident code is found.
+            $titleInfo = BulkImportHelper::extractProductTitleAndDescription($name, $brandForName, $code);
+            $name = $titleInfo['product_name'];
+            $extractedDescription = $titleInfo['description']; // '' when the title was kept unchanged
+
+            // SEO meta: title from the part number, description from brand/series/type. The "type"
+            // comes from the parsed title, else the Product Specific Category, else the category leaf.
+            $metaType = $titleInfo['type'] ?: trim((string)($row['product_specific_category'] ?? ''));
+            if ($metaType === '') {
+                $metaType = trim((string)($row['sub_sub_category_name'] ?? $row['sub_category_name'] ?? $row['category_name'] ?? ''));
+            }
+            $meta = BulkImportHelper::buildSeoMeta($name, $brandForName, $metaType, $titleInfo['series'] ?? null);
+
+            // Price + unit/MOQ/stock resolution with layered defaults.
+            $price = BulkImportHelper::computePricing($row, $defaults);
+            if (isset($price['error'])) {
+                $summary['unit_below_purchase']++;
+                $recordFailure($rowNo, $price['error']);
+                continue;
+            }
+            if ($price['unit_below_purchase']) { $summary['unit_below_purchase']++; }
+            if ($price['flags']['calc_purchase']) { $summary['calc_purchase']++; }
+            if ($price['flags']['calc_unit'])     { $summary['calc_unit']++; }
+            if ($price['flags']['default_unit'])  { $summary['default_unit']++; }
+            if ($price['flags']['default_moq'])   { $summary['default_moq']++; }
+            if ($price['flags']['default_stock']) { $summary['default_stock']++; }
+
+            $action = isset($existing_products[$code]) ? 'update' : 'create';
+            if ($action === 'update') { $summary['to_update']++; } else { $summary['to_create']++; }
+
+            // Best-effort "new record" preview counts (de-duplicated within this preview).
+            if (!$hasBrandId && $brandNameForRow !== '') {
+                $bkey = BulkImportHelper::normalizeKey($brandNameForRow);
+                if (!isset($brandMap[$bkey]) && !isset($previewNewBrand[$bkey])) {
+                    $previewNewBrand[$bkey] = true;
+                    $summary['new_brands']++;
+                }
+            }
+            foreach ([['category_name', 0, 'new_l1'], ['sub_category_name', 1, 'new_l2'], ['sub_sub_category_name', 2, 'new_l3']] as $levelInfo) {
+                [$field, $pos, $skey] = $levelInfo;
+                $val = trim((string)($row[$field] ?? ''));
+                if ($val === '') { continue; }
+                $nkey = BulkImportHelper::normalizeKey($val);
+                $existsAtPos = false;
+                foreach (($catMap[$pos] ?? []) as $byParent) {
+                    if (isset($byParent[$nkey])) { $existsAtPos = true; break; }
+                }
+                $pkey = $pos . '|' . $nkey;
+                if (!$existsAtPos && !isset($previewNewCat[$pkey])) {
+                    $previewNewCat[$pkey] = true;
+                    $summary[$skey]++;
                 }
             }
 
-            if ($has_empty_required_field) {
-                $skipped_rows++;
-                continue; 
-            }
-            // NEW: The SKU Duplication Checker
-            $current_sku = $collection['product_code'] ?? null;
-            if ($current_sku && in_array((string)$current_sku, $existing_skus)) {
-                $skipped_rows++;
-                continue; // Skip this row entirely because we already sell this part!
-            }
+            $l2Id = (isset($row['sub_category_id']) && is_numeric($row['sub_category_id']) && in_array((int)$row['sub_category_id'], $validIds[1], true)) ? (int)$row['sub_category_id'] : null;
+            $l3Id = (isset($row['sub_sub_category_id']) && is_numeric($row['sub_sub_category_id']) && in_array((int)$row['sub_sub_category_id'], $validIds[2], true)) ? (int)$row['sub_sub_category_id'] : null;
 
-            if (!in_array($collection['brand_id'], $valid_brands)) {
-                $skipped_rows++;
-                continue;
+            // Label the likely image source for the preview (priority: ZIP file > URL > ZIP auto-match > none).
+            $thumbFile = trim((string)($row['thumbnail_file'] ?? ''));
+            $galleryFiles = trim((string)($row['gallery_files'] ?? ''));
+            $thumbUrl = trim((string)($row['thumbnail_url'] ?? ''));
+            $galleryUrls = trim((string)($row['gallery_urls'] ?? ''));
+            $codeStem = mb_strtolower($code);
+            if (($thumbFile !== '' && isset($zipBaseNames[BulkImportHelper::fileMatchKey($thumbFile)])) ||
+                ($galleryFiles !== '' && $this->bulk_import_any_zip_file($galleryFiles, $zipBaseNames))) {
+                $imageNote = 'ZIP (named)';
+            } elseif ($thumbUrl !== '' || $galleryUrls !== '') {
+                $imageNote = 'URL';
+            } elseif (isset($zipStems[$codeStem]) || isset($zipStems[$codeStem . '_1'])) {
+                $imageNote = 'ZIP (auto)';
+            } else {
+                $imageNote = 'none';
             }
+            if ($imageNote === 'none') { $summary['without_image_source']++; } else { $summary['with_image_source']++; }
 
-            if (!in_array($collection['category_id'], $valid_categories)) {
-                $skipped_rows++;
-                continue;
-            }
+            $rowData = [
+                '_action'      => $action,
+                '_existing_id' => $action === 'update' ? (int)$existing_products[$code] : null,
+                '_row'         => $rowNo,
+                'name'         => $name,
+                'product_code' => $code,
+                'cat'          => [
+                    'l1' => ['id' => $hasL1Id ? (int)$row['category_id'] : null, 'name' => $row['category_name'] ?? null],
+                    'l2' => ['id' => $l2Id, 'name' => $row['sub_category_name'] ?? null],
+                    'l3' => ['id' => $l3Id, 'name' => $row['sub_sub_category_name'] ?? null],
+                ],
+                'brand'        => ['id' => $brandIdForRow, 'name' => $brandNameForRow], // default brand already applied
+                'unit'         => $price['unit'],
+                'min_qty'      => $price['min_qty'],
+                'refundable'   => $price['refundable'],
+                'unit_price'   => $price['unit_price'],       // store currency; converted to USD at confirm
+                'purchase_price' => $price['purchase_price'], // store currency; converted to USD at confirm
+                'tax'          => $price['tax'],
+                'discount'     => $price['discount'],
+                'discount_type' => $price['discount_type'],
+                'current_stock' => $price['current_stock'],
+                // Merge any file-provided details with the descriptive text extracted from the title.
+                'details'      => $this->bulk_import_merge_details($row['details_html'] ?? $row['details'] ?? '', $extractedDescription),
+                'meta_title'        => $meta['meta_title'],
+                'meta_description'  => $meta['meta_description'],
+                'youtube_video_url' => $row['youtube_video_url'] ?? '',
+                'thumbnail_url' => $row['thumbnail_url'] ?? '',
+                'gallery_urls' => $row['gallery_urls'] ?? '',
+                'thumbnail_file' => $row['thumbnail_file'] ?? '', // matched against the ZIP at confirm
+                'gallery_files' => $row['gallery_files'] ?? '',   // matched against the ZIP at confirm
+                'image_note'   => $imageNote,
+                'flags'        => $price['flags'],
+                'unit_below_purchase' => $price['unit_below_purchase'],
+            ];
 
-            $sub_cat_id = $collection['sub_category_id'] ?: 0;
-            $sub_sub_cat_id = $collection['sub_sub_category_id'] ?: 0;
+            // Stream this row to disk; only keep a small sample in memory for the preview table.
+            fwrite($fh, json_encode($rowData) . "\n");
+            $validCount++;
+            if (count($sample) < $sampleLimit) {
+                $sample[] = $rowData;
+            }
+        }
 
-            if ($sub_cat_id != 0 && !in_array($sub_cat_id, $valid_sub_categories)) {
-                $skipped_rows++;
-                continue;
-            }
-            if ($sub_sub_cat_id != 0 && !in_array($sub_sub_cat_id, $valid_sub_sub_categories)) {
-                $skipped_rows++;
-                continue;
-            }
+        fclose($fh);
+        unset($collections); // free the parsed sheet before rendering
 
-            $category_ids = [['id' => (string)$collection['category_id'], 'position' => 1]];
-            if ($sub_cat_id != 0) {
-                $category_ids[] = ['id' => (string)$sub_cat_id, 'position' => 2];
-            }
-            if ($sub_sub_cat_id != 0) {
-                $category_ids[] = ['id' => (string)$sub_sub_cat_id, 'position' => 3];
-            }
-
-            array_push($data, [
-                'name' => $collection['name'],
-                'product_code' => $current_sku, // NEW: Map the part number to the database array
-                'slug' => Str::slug($collection['name'], '-') . '-' . Str::random(6),
-                'category_ids' => json_encode($category_ids), 
-                'brand_id' => $collection['brand_id'],
-                'unit' => $collection['unit'],
-                'min_qty' => $collection['min_qty'],
-                'refundable' => $collection['refundable'],
-                'unit_price' => BackEndHelper::currency_to_usd($collection['unit_price']),
-                'purchase_price' => BackEndHelper::currency_to_usd($collection['purchase_price']),
-                'tax' => $collection['tax'],
-                'discount' => $collection['discount'],
-                'discount_type' => $collection['discount_type'],
-                'current_stock' => $collection['current_stock'],
-                // Full export splits details into details_html (raw) + details_plain_text (readable).
-                // Accept details_html first, then fall back to the original 'details' template column.
-                'details' => $collection['details_html'] ?? $collection['details'] ?? '',
-                'video_provider' => 'youtube',
-                'video_url' => $collection['youtube_video_url'],
-                // NEW: Map the URL columns from Excel
-                'thumbnail_url' => $collection['thumbnail_url'] ?? '',
-                'gallery_urls' => $collection['gallery_urls'] ?? '',
-                'status' => 1,
-                'request_status' => 1,
-                'colors' => json_encode([]),
-                'attributes' => json_encode([]),
-                'choice_options' => json_encode([]),
-                'variation' => json_encode([]),
-                'featured_status' => 1,
-                'added_by' => 'admin',
-                'user_id' => auth('admin')->id(),
+        if ($validCount === 0) {
+            $this->bulk_import_cleanup_data();
+            Toastr::error('No valid products found. Check the failed-rows list below or your column headers.');
+            return view('admin-views.product.bulk-import', [
+                'preview_summary' => $summary,
+                'preview_failed'  => $failed_rows,
+                'preview_failed_total' => $failed_total,
             ]);
         }
-     
-        if (count($data) == 0) {
-            Toastr::error('No valid products found. Check your required fields and IDs!');
-            return back();
+
+        if ($defaultBrand === '' && $inferredBrand !== '') {
+            Toastr::info("No brand column or default brand set — using '{$inferredBrand}' inferred from the file name for rows without a brand.");
+        }
+        if ($summary['skipped'] > 0) {
+            Toastr::warning("Skipped {$summary['skipped']} row(s). See the failed-rows list for reasons.");
         }
 
-        if ($skipped_rows > 0) {
-            Toastr::warning("Skipped {$skipped_rows} row(s) due to missing fields or invalid IDs.");
-        }
-
-        session()->put('product_import_data', $data);
-        return view('admin-views.product.bulk-import', ['preview_data' => $data]);
+        session()->put('product_import_token', $token);
+        session()->put('product_import_filename', $request->hasFile('products_file') ? $request->file('products_file')->getClientOriginalName() : null);
+        session()->put('product_import_options', array_merge($defaults, ['resolved_fallback_brand' => $fallbackBrand]));
+        session()->forget('product_import_data'); // legacy session payload no longer used
+        return view('admin-views.product.bulk-import', [
+            'preview_data'    => $sample,
+            'preview_total'   => $validCount,
+            'preview_summary' => $summary,
+            'preview_failed'  => $failed_rows,
+            'preview_failed_total' => $failed_total,
+        ]);
     }
 
+    /**
+     * Confirm import: instead of processing everything in this one (slow) request, create a
+     * ProductImportJob pointing at the already-prepared NDJSON file and redirect to the progress
+     * page. The browser then drives chunked processing via Ajax so nothing times out.
+     */
     public function bulk_import_data(Request $request)
     {
-        // Prevent server timeout since downloading takes time
-        set_time_limit(0); 
-
-        $data = session()->get('product_import_data');
-
-        if (!$data) {
+        $token = session()->get('product_import_token');
+        $dataPath = $this->bulk_import_data_path();
+        if (!$token || !$dataPath) {
             Toastr::error('Session expired or no data found. Please upload the file again.');
             return redirect()->route('admin.product.bulk-import');
         }
 
-        $formatted_data = [];
-
-        foreach ($data as $product) {
-            $thumbnail_name = 'def.png';
-            $gallery_names = ['def.png'];
-
-            // 1. Download Main Thumbnail
-            $thumb_url = $product['thumbnail_url'] ?? ''; 
-            if (filter_var($thumb_url, FILTER_VALIDATE_URL)) {
-                try {
-                    $imageContents = file_get_contents($thumb_url);
-                    if ($imageContents) {
-                        $thumbnail_name = \Carbon\Carbon::now()->toDateString() . '-' . uniqid() . '.png';
-                        // Save directly to your public folder
-                        Storage::disk('public')->put('product/thumbnail/' . $thumbnail_name, $imageContents);
-                    }
-                } catch (\Exception $e) {
-                    // Silently fail to def.png if the URL is broken or blocked
-                }
-            }
-
-            // 2. Download Gallery Images (Comma-separated)
-            $gallery_urls_string = $product['gallery_urls'] ?? '';
-            $downloaded_galleries = [];
-
-            if (!empty($gallery_urls_string)) {
-                $urls = explode(',', $gallery_urls_string);
-                
-                foreach ($urls as $url) {
-                    $url = trim($url);
-                    if (filter_var($url, FILTER_VALIDATE_URL)) {
-                        try {
-                            $img_content = file_get_contents($url);
-                            if ($img_content) {
-                                $gal_name = \Carbon\Carbon::now()->toDateString() . '-' . uniqid() . '.png';
-                                Storage::disk('public')->put('product/' . $gal_name, $img_content);
-                                $downloaded_galleries[] = $gal_name;
-                            }
-                        } catch (\Exception $e) {
-                            // Skip broken gallery links
-                        }
-                    }
-                }
-            }
-
-            // 3. SMART FALLBACK: If they didn't provide gallery images, but DID provide a thumbnail, copy the thumbnail into the gallery!
-            if (count($downloaded_galleries) > 0) {
-                $gallery_names = $downloaded_galleries;
-            } elseif ($thumbnail_name !== 'def.png') {
-                // Copy the thumbnail from the thumbnail folder into the main product gallery folder
-                Storage::disk('public')->copy('product/thumbnail/' . $thumbnail_name, 'product/' . $thumbnail_name);
-                $gallery_names = [$thumbnail_name]; // Use the copied thumbnail as the only gallery image
-            } else {
-                $gallery_names = ['def.png'];
-            }
-
-            // Remove the temporary URL columns and add the real filenames before database insertion
-
-            // Remove the temporary URL columns and add the real filenames before database insertion
-            unset($product['thumbnail_url']);
-            unset($product['gallery_urls']);
-            
-            $product['thumbnail'] = $thumbnail_name;
-            $product['images'] = json_encode($gallery_names);
-            $product['created_at'] = now();
-            $product['updated_at'] = now();
-
-            $formatted_data[] = $product;
+        // Count rows quickly (one cheap pass; no row processing here).
+        $totalRows = 0;
+        $fh = fopen($dataPath, 'r');
+        if ($fh) {
+            while (fgets($fh) !== false) { $totalRows++; }
+            fclose($fh);
+        }
+        if ($totalRows === 0) {
+            $this->bulk_import_cleanup_data();
+            Toastr::error('No prepared rows found. Please upload the file again.');
+            return redirect()->route('admin.product.bulk-import');
         }
 
-        DB::table('products')->insert($formatted_data);
-        session()->forget('product_import_data');
+        // Carry the upload-form options to the job. If image processing is on and a ZIP was stashed,
+        // hand the ZIP to the job (keep the file); otherwise release the ZIP now.
+        $options = session('product_import_options') ?? [];
+        $zipToken = session('product_import_zip');
+        if (!empty($options['process_images']) && $zipToken) {
+            $options['zip_token'] = $zipToken;
+            session()->forget('product_import_zip'); // keep the file — the job owns it now
+        } else {
+            $this->bulk_import_cleanup_zip();         // images off or no ZIP — delete it
+        }
 
-        Toastr::success(count($formatted_data) . ' - Products and images imported successfully!');
-        return redirect()->route('admin.product.list', ['in_house']);
+        $job = ProductImportJob::create([
+            'file_path'          => 'bulk_import_data/' . $token . '.ndjson',
+            'original_file_name' => session('product_import_filename'),
+            'status'             => 'pending',
+            'total_rows'         => $totalRows,
+            'import_options'     => $options,
+            'admin_id'           => auth('admin')->id(),
+        ]);
+
+        // Hand the temp data file over to the job. Drop the session token WITHOUT deleting the file
+        // (the job owns it now and the chunk processor cleans it up when finished).
+        session()->forget('product_import_token');
+        session()->forget('product_import_filename');
+        session()->forget('product_import_options');
+
+        return redirect()->route('admin.product.bulk-import-progress', ['job' => $job->id]);
+    }
+
+    /** Live progress page for a background import job. */
+    public function bulk_import_progress($id)
+    {
+        $job = ProductImportJob::findOrFail($id);
+        return view('admin-views.product.bulk-import-progress', ['job' => $job]);
+    }
+
+    /** Read-only JSON snapshot of a job's progress (polled by the progress page). */
+    public function bulk_import_progress_status($id)
+    {
+        $job = ProductImportJob::findOrFail($id);
+        return response()->json($this->bulk_import_job_payload($job));
+    }
+
+    /**
+     * Process the next chunk of a job and return updated progress as JSON.
+     * Driven by the progress page in a loop; a cache lock prevents two tabs double-processing.
+     */
+    public function bulk_import_process_chunk($id)
+    {
+        set_time_limit(0);
+        $job = ProductImportJob::findOrFail($id);
+
+        if ($job->isFinished()) {
+            return response()->json($this->bulk_import_job_payload($job));
+        }
+
+        // Guard against concurrent chunk runs (e.g. two open tabs). If we can't get the lock,
+        // another request is already processing — just return current progress.
+        $lock = Cache::lock('product_import_job_' . $job->id, 120);
+        if (!$lock->get()) {
+            return response()->json($this->bulk_import_job_payload($job));
+        }
+
+        try {
+            $job->refresh();
+            if ($job->isFinished()) {
+                return response()->json($this->bulk_import_job_payload($job));
+            }
+            if ($job->status === 'pending') {
+                $job->status = 'processing';
+                $job->started_at = now();
+                $job->save();
+            }
+
+            BulkImportProcessor::processChunk($job, 200);
+
+            if ($job->processed_rows >= $job->total_rows) {
+                $job->status = 'completed';
+                $job->completed_at = now();
+                $job->save();
+                // Clean up the temp data file (and any images ZIP) now that the job is done.
+                if ($job->file_path && Storage::disk('local')->exists($job->file_path)) {
+                    Storage::disk('local')->delete($job->file_path);
+                }
+                $zipToken = $job->import_options['zip_token'] ?? null;
+                if ($zipToken && Storage::disk('local')->exists('bulk_import_zip/' . $zipToken . '.zip')) {
+                    Storage::disk('local')->delete('bulk_import_zip/' . $zipToken . '.zip');
+                }
+            }
+        } catch (\Throwable $e) {
+            $job->status = 'failed';
+            $job->error_message = $e->getMessage();
+            $job->completed_at = now();
+            $job->save();
+            \Illuminate\Support\Facades\Log::error('Bulk import job ' . $job->id . ' failed: ' . $e->getMessage());
+        } finally {
+            optional($lock)->release();
+        }
+
+        return response()->json($this->bulk_import_job_payload($job));
+    }
+
+    /** Shared JSON shape for the status + process-chunk endpoints. */
+    private function bulk_import_job_payload(ProductImportJob $job): array
+    {
+        return [
+            'status'         => $job->status,
+            'total_rows'     => $job->total_rows,
+            'processed_rows' => $job->processed_rows,
+            'percentage'     => $job->percentage(),
+            'created_count'  => $job->created_count,
+            'updated_count'  => $job->updated_count,
+            'skipped_count'  => $job->skipped_count,
+            'failed_count'   => $job->failed_count,
+            'new_brands_count'             => $job->new_brands_count,
+            'new_categories_count'         => $job->new_categories_count,
+            'new_sub_categories_count'     => $job->new_sub_categories_count,
+            'new_sub_sub_categories_count' => $job->new_sub_sub_categories_count,
+            'calculated_purchase_price_count' => $job->calculated_purchase_price_count,
+            'calculated_selling_price_count'  => $job->calculated_selling_price_count,
+            'default_unit_used_count'  => $job->default_unit_used_count,
+            'default_moq_used_count'   => $job->default_moq_used_count,
+            'default_stock_used_count' => $job->default_stock_used_count,
+            'with_images_count'            => $job->with_images_count,
+            'without_images_count'         => $job->without_images_count,
+            'images_from_zip_count'        => $job->images_from_zip_count,
+            'images_downloaded_count'      => $job->images_downloaded_count,
+            'failed_image_downloads_count' => $job->failed_image_downloads_count,
+            'invalid_images_count'         => $job->invalid_images_count,
+            'error_message'  => $job->error_message,
+            'failed_rows'    => $job->isFinished() ? ($job->failed_rows ?? []) : [],
+            'updated_at'     => optional($job->updated_at)->toDateTimeString(),
+        ];
+    }
+
+    /** Image-pipeline dashboard (live "560 / 6000 done" view). */
+    public function image_pipeline()
+    {
+        return view('admin-views.product.image-pipeline');
+    }
+
+    /** JSON progress for the image pipeline, computed from products.image_status. */
+    public function image_pipeline_status()
+    {
+        $counts = DB::table('products')
+            ->whereNotNull('product_code')->where('product_code', '!=', '')
+            ->select('image_status', DB::raw('count(*) as c'))
+            ->groupBy('image_status')->pluck('c', 'image_status');
+
+        $get = fn ($k) => (int) ($counts[$k] ?? 0);
+        $placeholder = $get('placeholder') + (int) ($counts[''] ?? 0) + (int) ($counts[null] ?? 0);
+        $fetched = $get('fetched');
+        $reused = $get('reused');
+        $failed = $get('failed');
+        $review = $get('manual_review');
+        $queued = $get('queued');
+        $total = (int) array_sum($counts->all());
+        $processed = $fetched + $reused + $failed + $review;
+
+        return response()->json([
+            'total'         => $total,
+            'placeholder'   => $placeholder,
+            'queued'        => $queued,
+            'processed'     => $processed,
+            'fetched'       => $fetched,
+            'reused'        => $reused,
+            'failed'        => $failed,
+            'manual_review' => $review,
+            'percentage'    => $total > 0 ? round($processed / $total * 100, 2) : 0,
+            'updated_at'    => now()->toDateTimeString(),
+        ]);
+    }
+
+    /** CSV export of products needing manual image handling (manual_review / failed). */
+    public function image_review_export()
+    {
+        $rows = DB::table('products as p')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
+            ->whereIn('p.image_status', ['manual_review', 'failed'])
+            ->orderBy('p.id')
+            ->get(['p.id', 'p.name', 'p.product_code', 'p.image_family_key', 'p.thumbnail', 'p.image_error', 'b.name as brand']);
+
+        $filename = 'image_review_' . now()->format('Ymd_His') . '.csv';
+        return response()->streamDownload(function () use ($rows) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['product_id', 'name', 'brand', 'mpn', 'family_key', 'current_image', 'error', 'suggested_search']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r->id, $r->name, $r->brand, $r->product_code, $r->image_family_key,
+                    $r->thumbnail, $r->image_error,
+                    trim(($r->brand ? $r->brand . ' ' : '') . $r->product_code), // suggested manual search query
+                ]);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     /**

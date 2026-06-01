@@ -48,4 +48,22 @@ return [
         'redirect' => env('TWITTER_SERVICE_CALLBACK'),
     ],
 
+    // Distributor APIs used by products:fetch-images to look up product photos by part number.
+    'mouser' => [
+        'key' => env('MOUSER_API_KEY'),
+    ],
+    'digikey' => [
+        'client_id'     => env('DIGIKEY_CLIENT_ID'),
+        'client_secret' => env('DIGIKEY_CLIENT_SECRET'),
+    ],
+    'nexar' => [ // Octopart
+        'client_id'     => env('NEXAR_CLIENT_ID'),
+        'client_secret' => env('NEXAR_CLIENT_SECRET'),
+    ],
+    'element14' => [ // Farnell / Newark product search API
+        'key'        => env('ELEMENT14_API_KEY'),
+        'store'      => env('ELEMENT14_STORE', 'uk.farnell.com'),  // e.g. www.newark.com, sg.element14.com
+        'image_base' => env('ELEMENT14_IMAGE_BASE'),               // override if images 404 (else derived from store)
+    ],
+
 ];

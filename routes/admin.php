@@ -297,6 +297,14 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::get('bulk-import', 'ProductController@bulk_import_index')->name('bulk-import');
             Route::post('bulk-import-preview', 'ProductController@bulk_import_preview')->name('bulk-import-preview');// added preview
             Route::post('bulk-import', 'ProductController@bulk_import_data');
+            // Background (chunked) import progress + driver endpoints
+            Route::get('bulk-import-progress/{job}', 'ProductController@bulk_import_progress')->name('bulk-import-progress');
+            Route::get('bulk-import-progress/{job}/status', 'ProductController@bulk_import_progress_status')->name('bulk-import-progress-status');
+            Route::post('bulk-import-process/{job}', 'ProductController@bulk_import_process_chunk')->name('bulk-import-process');
+            // Background image pipeline: dashboard, live status, review export
+            Route::get('image-pipeline', 'ProductController@image_pipeline')->name('image-pipeline');
+            Route::get('image-pipeline/status', 'ProductController@image_pipeline_status')->name('image-pipeline-status');
+            Route::get('image-pipeline/review-export', 'ProductController@image_review_export')->name('image-pipeline-review-export');
             Route::get('bulk-export', 'ProductController@bulk_export_data')->name('bulk-export');
             Route::get('barcode/{id}', 'ProductController@barcode')->name('barcode');
             Route::get('barcode/generate', 'ProductController@barcode_generate')->name('barcode.generate');

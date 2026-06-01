@@ -50,6 +50,10 @@ APP_URL=https://yourdomain.com           # CRITICAL: image URLs are APP_URL + /s
 # enqueue background fetches for products needing an image
 php artisan products:dispatch-image-jobs --limit=1000 [--include-failed] [--include-review]
 
+# provider-scoped retry: sweep review items through ONE provider only, skipping products that
+# already tried it (e.g. give DigiKey-misses an Element14 shot WITHOUT re-burning DigiKey quota)
+php artisan products:dispatch-image-jobs --include-review --provider=element14 --limit=200
+
 # process the queue (a short-lived worker)
 php artisan queue:work database --queue=images --tries=3 --stop-when-empty --max-time=55
 

@@ -31,7 +31,12 @@ class FetchProductImageJob implements ShouldQueue
     public $backoff = [30, 120, 300];
     public $timeout = 90;
 
-    public function __construct(public int $productId, public bool $allowOverwrite = false)
+    /**
+     * @param int        $productId
+     * @param bool       $allowOverwrite  overwrite fetched/reused/real images (use with care)
+     * @param array|null $onlyProviders   restrict the chain to these provider names (e.g. ['element14'])
+     */
+    public function __construct(public int $productId, public bool $allowOverwrite = false, public ?array $onlyProviders = null)
     {
     }
 
@@ -66,10 +71,12 @@ class FetchProductImageJob implements ShouldQueue
         // 2) Ask providers for an exact-match image.
         $quota = false;
         $definiteNoImage = false;
+        $tried = [];  // providers that gave a definitive answer this run (not quota/skipped)
         foreach ($this->providers() as $provider) {
             $r = $provider->findImage((string) $p->product_code, $brand);
 
             if ($r['status'] === 'image') {
+                $tried[] = $provider->name();
                 $stats = ['images_from_zip' => 0, 'images_downloaded' => 0, 'failed_downloads' => 0, 'invalid_images' => 0];
                 $img = BulkImportProcessor::resolveImages(
                     ['product_code' => $p->product_code, '_row' => $p->id, 'thumbnail_url' => $r['image_url']],
@@ -91,33 +98,49 @@ class FetchProductImageJob implements ShouldQueue
                             ]
                         );
                     }
-                    $this->attach($p->id, $img['thumbnail'], $img['images'], 'fetched', $provider->name(), $r['confidence'] ?? 90, false);
+                    $this->attach($p->id, $img['thumbnail'], $img['images'], 'fetched', $provider->name(), $r['confidence'] ?? 90, false,
+                        $this->mergeTried($p->image_providers_tried, $tried));
                     Log::info('FetchProductImageJob: fetched image', ['id' => $p->id, 'provider' => $provider->name(), 'family' => $fam['key']]);
                     return;
                 }
                 $definiteNoImage = true; // had a URL but it would not download/validate
             } elseif ($r['status'] === 'quota') {
-                $quota = true;
+                $quota = true; // not really tried — do not record, so it is retried later
             } elseif (in_array($r['status'], ['no_match', 'details_no_image'], true)) {
+                $tried[] = $provider->name();
                 $definiteNoImage = true;
             }
         }
 
+        $mergedTried = $this->mergeTried($p->image_providers_tried, $tried);
+
         // 3) Outcome.
         if ($quota && !$definiteNoImage) {
             // Daily API quota is gone — reset to 'placeholder' so the dispatcher re-enqueues it next cycle.
-            DB::table('products')->where('id', $p->id)->update(['image_status' => 'placeholder', 'updated_at' => now()]);
-            Log::info('FetchProductImageJob: quota exhausted, reset to placeholder', ['id' => $p->id]);
+            // Record any providers that DID answer this run (so a scoped retry can still skip them).
+            DB::table('products')->where('id', $p->id)->update([
+                'image_status' => 'placeholder', 'image_providers_tried' => $mergedTried, 'updated_at' => now(),
+            ]);
+            Log::info('FetchProductImageJob: quota exhausted, reset to placeholder', ['id' => $p->id, 'tried' => $mergedTried]);
             return;
         }
 
         DB::table('products')->where('id', $p->id)->update([
-            'image_status'       => 'manual_review',
-            'image_needs_review' => true,
-            'image_error'        => 'No trusted image found',
-            'updated_at'         => now(),
+            'image_status'          => 'manual_review',
+            'image_needs_review'    => true,
+            'image_error'           => 'No trusted image found',
+            'image_providers_tried' => $mergedTried,
+            'updated_at'            => now(),
         ]);
-        Log::warning('FetchProductImageJob: needs manual review', ['id' => $p->id, 'code' => $p->product_code, 'family' => $fam['key']]);
+        Log::warning('FetchProductImageJob: needs manual review', ['id' => $p->id, 'code' => $p->product_code, 'family' => $fam['key'], 'tried' => $mergedTried]);
+    }
+
+    /** Merge a comma-separated "tried providers" string with newly-tried names, de-duplicated. */
+    private function mergeTried(?string $existing, array $new): ?string
+    {
+        $set = array_filter(array_map('trim', explode(',', (string) $existing)));
+        $set = array_values(array_unique(array_merge($set, $new)));
+        return $set ? implode(',', $set) : null;
     }
 
     /** Safety gate: never touch a real/manual image or an already-done product (unless allowed). */
@@ -137,7 +160,7 @@ class FetchProductImageJob implements ShouldQueue
     }
 
     /** Set the product image + status. Ensures the gallery copy exists when reusing. */
-    private function attach(int $id, string $thumb, array $gallery, string $status, string $source, ?int $confidence, bool $needsReview): void
+    private function attach(int $id, string $thumb, array $gallery, string $status, string $source, ?int $confidence, bool $needsReview, ?string $providersTried = null): void
     {
         foreach ($gallery as $g) {
             if ($g && $g !== 'def.png'
@@ -148,7 +171,7 @@ class FetchProductImageJob implements ShouldQueue
         }
         $gallery = array_values(array_filter($gallery, fn ($g) => $g !== null && $g !== '')) ?: [$thumb];
 
-        DB::table('products')->where('id', $id)->update([
+        $data = [
             'thumbnail'          => $thumb,
             'images'             => json_encode($gallery),
             'image_status'       => $status,
@@ -157,17 +180,27 @@ class FetchProductImageJob implements ShouldQueue
             'image_needs_review' => $needsReview,
             'image_error'        => null,
             'updated_at'         => now(),
-        ]);
+        ];
+        if ($providersTried !== null) {
+            $data['image_providers_tried'] = $providersTried;
+        }
+        DB::table('products')->where('id', $id)->update($data);
     }
 
-    /** Available providers in priority order. */
+    /** Available providers in priority order, optionally restricted by $this->onlyProviders. */
     private function providers(): array
     {
-        return array_values(array_filter([
+        $all = array_filter([
             new DigiKeyImageProvider(),    // exact-match, downloadable CDN, 1000/day
             new Element14ImageProvider(),  // Farnell/Newark — covers DigiKey's misses (downloadable CDN)
             // new NexarImageProvider(),   // disabled: free tier too small (~100/day). Class kept for later.
             new ManualSearchImageProvider(),
-        ], fn ($p) => $p->isAvailable()));
+        ], fn ($p) => $p->isAvailable());
+
+        if (!empty($this->onlyProviders)) {
+            $only = array_map('strtolower', $this->onlyProviders);
+            $all = array_filter($all, fn ($p) => in_array($p->name(), $only, true));
+        }
+        return array_values($all);
     }
 }

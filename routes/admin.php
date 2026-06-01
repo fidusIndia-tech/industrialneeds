@@ -305,6 +305,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::get('image-pipeline', 'ProductController@image_pipeline')->name('image-pipeline');
             Route::get('image-pipeline/status', 'ProductController@image_pipeline_status')->name('image-pipeline-status');
             Route::get('image-pipeline/review-export', 'ProductController@image_review_export')->name('image-pipeline-review-export');
+            Route::get('image-pipeline/gallery', 'ProductController@image_gallery')->name('image-pipeline-gallery');
             Route::get('bulk-export', 'ProductController@bulk_export_data')->name('bulk-export');
             Route::get('barcode/{id}', 'ProductController@barcode')->name('barcode');
             Route::get('barcode/generate', 'ProductController@barcode_generate')->name('barcode.generate');

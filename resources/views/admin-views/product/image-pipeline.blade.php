@@ -18,6 +18,9 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0"><i class="tio-image"></i> {{\App\CPU\translate('Product Image Pipeline')}}</h4>
                         <div>
+                            <a href="{{route('admin.product.image-pipeline-gallery')}}" class="btn btn-sm btn-outline-primary">
+                                <i class="tio-image"></i> {{\App\CPU\translate('View fetched images')}}
+                            </a>
                             <a href="{{route('admin.product.image-pipeline-review-export')}}" class="btn btn-sm btn-outline-danger">
                                 <i class="tio-download-to"></i> {{\App\CPU\translate('Export review list')}}
                             </a>

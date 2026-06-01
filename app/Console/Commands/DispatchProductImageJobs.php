@@ -25,6 +25,7 @@ class DispatchProductImageJobs extends Command
         {--include-failed : Also re-enqueue products in the failed state}
         {--include-review : Also re-enqueue products already marked manual_review}
         {--allow-overwrite : Allow overwriting fetched/reused/real images (use with care)}
+        {--provider= : Use only these providers (comma-separated, e.g. element14). Skips others AND only picks products that have not already tried them — so an Element14-only sweep never re-burns DigiKey quota.}
         {--sync : Run each job inline now instead of queuing (handy for a quick test)}';
 
     protected $description = 'Queue background image fetching for products needing images (family reuse + provider lookup).';
@@ -33,6 +34,7 @@ class DispatchProductImageJobs extends Command
     {
         $limit = (int) $this->option('limit');
         $allowOverwrite = (bool) $this->option('allow-overwrite');
+        $providers = array_values(array_filter(array_map('trim', explode(',', (string) $this->option('provider')))));
 
         $query = DB::table('products')
             ->whereNotNull('product_code')->where('product_code', '!=', '')
@@ -46,6 +48,19 @@ class DispatchProductImageJobs extends Command
             if ($this->option('include-failed')) { $statuses[] = 'failed'; }
             if ($this->option('include-review')) { $statuses[] = 'manual_review'; }
             $query->whereIn('image_status', $statuses);
+        }
+
+        // Provider-scoped retry: only pick products that have NOT already tried a requested provider
+        // (so e.g. an Element14-only sweep never re-touches DigiKey).
+        if (!empty($providers)) {
+            $query->where(function ($q) use ($providers) {
+                foreach ($providers as $pr) {
+                    $q->orWhere(function ($q2) use ($pr) {
+                        $q2->whereNull('image_providers_tried')
+                           ->orWhere('image_providers_tried', 'not like', '%' . $pr . '%');
+                    });
+                }
+            });
         }
 
         if (($brand = trim((string) $this->option('brand'))) !== '') {
@@ -69,12 +84,13 @@ class DispatchProductImageJobs extends Command
             return 0;
         }
 
+        $only = !empty($providers) ? $providers : null;
         $bar = $this->output->createProgressBar($ids->count());
         foreach ($ids as $id) {
             if ($this->option('sync')) {
-                FetchProductImageJob::dispatchSync($id, $allowOverwrite);
+                FetchProductImageJob::dispatchSync($id, $allowOverwrite, $only);
             } else {
-                FetchProductImageJob::dispatch($id, $allowOverwrite)
+                FetchProductImageJob::dispatch($id, $allowOverwrite, $only)
                     ->onConnection('database')
                     ->onQueue('images');
                 // mark as queued so progress/filters reflect it (only from a not-yet-done state)

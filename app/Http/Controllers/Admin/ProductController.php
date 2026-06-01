@@ -1460,6 +1460,41 @@ class ProductController extends BaseController
     }
 
     /**
+     * Visual gallery of products by image status/source — shows the actual fetched thumbnails with
+     * source/confidence, paginated and filterable. Read-only.
+     */
+    public function image_gallery(Request $request)
+    {
+        $status = $request->get('status', 'fetched'); // fetched | reused | manual_review | failed | with_image | all
+        $source = trim((string) $request->get('source', ''));
+
+        $q = DB::table('products as p')
+            ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
+            ->whereNotNull('p.product_code')->where('p.product_code', '!=', '')
+            ->orderByDesc('p.image_last_attempt_at')->orderByDesc('p.id');
+
+        if ($status === 'with_image') {
+            $q->whereIn('p.image_status', ['fetched', 'reused']);
+        } elseif ($status !== 'all') {
+            $q->where('p.image_status', $status);
+        }
+        if ($source !== '') {
+            $q->where('p.image_source', 'like', $source . '%');
+        }
+
+        $products = $q->select(
+            'p.id', 'p.product_code', 'p.name', 'p.slug', 'p.thumbnail', 'p.image_status',
+            'p.image_source', 'p.image_confidence', 'p.image_family_key', 'p.image_error', 'b.name as brand'
+        )->paginate(60)->appends($request->query());
+
+        $counts = DB::table('products')
+            ->whereNotNull('product_code')->where('product_code', '!=', '')
+            ->select('image_status', DB::raw('count(*) as c'))->groupBy('image_status')->pluck('c', 'image_status');
+
+        return view('admin-views.product.image-gallery', compact('products', 'status', 'source', 'counts'));
+    }
+
+    /**
      * Full product data export. Produces a formatted .xlsx whose columns match the
      * bulk-import headers (so the file can be edited and re-imported) plus extra
      * human-readable reference columns. Read-only: no product is modified.

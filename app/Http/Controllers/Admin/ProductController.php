@@ -10,6 +10,7 @@ use App\CPU\BulkImportProcessor;
 use App\CPU\PriceUpdater;
 use App\CPU\Helpers;
 use App\Model\ProductImportJob;
+use App\Model\PriceUpdateJob;
 use Illuminate\Support\Facades\Cache;
 use App\CPU\ImageManager;
 use App\Http\Controllers\BaseController;
@@ -1498,31 +1499,38 @@ class ProductController extends BaseController
     // ───────────────────────────── Price-only update (admin UI) ─────────────────────────────
     // Match existing products by product_code and update ONLY the price columns (unit_price,
     // purchase_price, discount, discount_type). Never creates products, never touches name/brand/
-    // category/description/images/stock/live status. Two steps: upload→preview (read-only), then
-    // confirm→apply (with a reversible JSON backup). Shares all logic with the CLI via PriceUpdater.
+    // category/description/images/stock/live status. Upload → fast 40-row preview → confirm runs a
+    // CHUNKED background job with a live progress page (so big files never block the browser). Every
+    // apply writes a reversible JSON backup. All matching/pricing logic is shared with the CLI via
+    // App\CPU\PriceUpdater. Isolated from bulk import and the image pipeline.
 
-    /** Absolute path of the temp JSON holding {changes, not_found} for the confirm step, or null. */
+    /** Absolute path of the temp NDJSON of resolved price rows for the confirm step, or null. */
     private function price_update_path(): ?string
     {
         $token = session()->get('price_update_token');
         if (!$token) {
             return null;
         }
-        $path = 'price_update/' . $token . '.json';
+        $path = 'price_update/' . $token . '.ndjson';
         return Storage::disk('local')->exists($path) ? Storage::disk('local')->path($path) : null;
     }
 
-    /** Delete the temp preview file (if any) and drop the session keys. */
+    /** Delete this session's temp price-update files (if any) and drop the session keys. */
     private function price_update_cleanup(): void
     {
         $token = session()->get('price_update_token');
         if ($token) {
-            $path = 'price_update/' . $token . '.json';
-            if (Storage::disk('local')->exists($path)) {
-                Storage::disk('local')->delete($path);
+            foreach ([
+                'price_update/' . $token . '.ndjson',
+                'price_update/not_found_' . $token . '.ndjson',
+                'backups/price_update_backup_' . $token . '.ndjson',
+            ] as $p) {
+                if (Storage::disk('local')->exists($p)) {
+                    Storage::disk('local')->delete($p);
+                }
             }
         }
-        session()->forget(['price_update_token', 'price_update_summary']);
+        session()->forget(['price_update_token', 'price_update_filename', 'price_update_options', 'price_update_total', 'price_update_summary']);
     }
 
     public function price_update_index()
@@ -1531,10 +1539,17 @@ class ProductController extends BaseController
         return view('admin-views.product.price-update');
     }
 
-    /** Step 1 — read the sheet, analyse against the catalogue (READ-ONLY), show old→new preview. */
+    /**
+     * Step 1 — stream the sheet to a temp NDJSON (bounded memory) and show a FAST sample preview of
+     * the first ~40 rows with a single batched lookup. The full file is matched/applied in step 2.
+     */
     public function price_update_preview(Request $request)
     {
         set_time_limit(0);
+        $memLimit = (string) ini_get('memory_limit');
+        if (strpos($memLimit, '-1') === false && (int) preg_replace('/[^0-9]/', '', $memLimit) < 1024) {
+            @ini_set('memory_limit', '1024M'); // give large sheets room; leave "unlimited" alone
+        }
         $request->validate([
             'products_file' => 'required|file|mimes:xlsx,xls,csv,txt',
         ]);
@@ -1548,78 +1563,239 @@ class ProductController extends BaseController
         ];
 
         try {
-            $rows = (new FastExcel)->import($request->file('products_file')->getRealPath());
+            $collections = (new FastExcel)->import($request->file('products_file'));
         } catch (\Throwable $e) {
-            Toastr::error('Could not read the file: ' . $e->getMessage());
+            Toastr::error('You have uploaded a wrong format file, please upload the right file.');
             return back();
         }
 
-        $res = PriceUpdater::analyze($rows, $defaults);
-        $notFound = array_values(array_unique($res['not_found']));
-
-        // Persist the change set so the confirm step needs no re-upload (sheets can be large).
+        // Fresh slate, then stream resolved rows to a temp NDJSON (one row per line).
         $this->price_update_cleanup();
-        $token = Str::random(40);
-        Storage::disk('local')->put(
-            'price_update/' . $token . '.json',
-            json_encode(['changes' => $res['changes'], 'not_found' => $notFound])
-        );
+        $token = uniqid('pru_', true);
+        Storage::disk('local')->makeDirectory('price_update');
+        $dataPath = Storage::disk('local')->path('price_update/' . $token . '.ndjson');
+        $fh = fopen($dataPath, 'w');
+
+        $total = 0;
+        $columns = [];
+        $sampleSource = [];          // up to 40 rows that have a product_code, for the preview table
+        $sampleLimit = 40;
+
+        foreach ($collections as $index => $collection) {
+            $raw = (array) $collection;
+            if (empty($columns)) {
+                $columns = array_values(array_filter(array_map('strval', array_keys($raw))));
+            }
+
+            $r = PriceUpdater::resolveRow($raw);
+            if (BulkImportHelper::isRowEmpty($r)) {
+                continue; // skip fully empty / formatting-only rows
+            }
+
+            $canonical = PriceUpdater::canonicalRow($r);
+            fwrite($fh, json_encode($canonical) . "\n"); // every non-empty row (classified at apply time)
+            $total++;
+
+            if (count($sampleSource) < $sampleLimit && trim((string) ($canonical['product_code'] ?? '')) !== '') {
+                $sampleSource[] = ['_row' => $index + 1] + $canonical;
+            }
+        }
+        fclose($fh);
+
+        if ($total === 0) {
+            $this->price_update_cleanup();
+            Toastr::error('No usable rows were found in the file.');
+            return back();
+        }
+
+        $sample = PriceUpdater::sampleRows($sampleSource, $defaults); // one batched lookup, ≤40 rows
+
         session()->put('price_update_token', $token);
+        session()->put('price_update_filename', $request->file('products_file')->getClientOriginalName());
+        session()->put('price_update_options', $defaults);
+        session()->put('price_update_total', $total);
 
         $summary = [
-            'processed' => $res['processed'], 'matched' => $res['matched'], 'changed' => $res['changed'],
-            'skipped'   => $res['skipped'],   'invalid' => $res['invalid'], 'not_found' => count($notFound),
+            'total_rows'   => $total,
+            'preview_rows' => count($sample),
+            'columns'      => $columns,
         ];
-        session()->put('price_update_summary', $summary);
-
-        $sample = array_slice($res['changes'], 0, 100);
-        return view('admin-views.product.price-update', compact('sample', 'summary', 'notFound'));
+        return view('admin-views.product.price-update', compact('sample', 'summary'));
     }
 
-    /** Step 2 — apply the previewed price changes (price columns only) with a reversible backup. */
+    /** Step 2 — create a chunked background job from the prepared rows and go to the progress page. */
     public function price_update_apply(Request $request)
     {
-        set_time_limit(0);
-        $path = $this->price_update_path();
-        if (!$path) {
+        $token = session()->get('price_update_token');
+        $dataPath = $this->price_update_path();
+        if (!$token || !$dataPath) {
             Toastr::error('Your preview expired. Please upload the file again.');
-            return redirect()->route('admin.products.price-update');
+            return redirect()->route('admin.product.price-update');
         }
 
-        $data = json_decode((string) file_get_contents($path), true) ?: [];
-        $changes = $data['changes'] ?? [];
-        if (empty($changes)) {
-            Toastr::warning('No price changes to apply.');
-            return redirect()->route('admin.products.price-update');
+        $total = (int) session('price_update_total', 0);
+        if ($total <= 0) {
+            $total = 0;
+            $fh = fopen($dataPath, 'r');
+            if ($fh) {
+                while (fgets($fh) !== false) { $total++; }
+                fclose($fh);
+            }
         }
-
-        $backup = PriceUpdater::applyChanges($changes);
+        if ($total === 0) {
+            $this->price_update_cleanup();
+            Toastr::error('No prepared rows found. Please upload the file again.');
+            return redirect()->route('admin.product.price-update');
+        }
 
         Storage::disk('local')->makeDirectory('backups');
-        $bf = 'backups/price_update_backup_' . now()->format('Ymd_His') . '.json';
-        Storage::disk('local')->put($bf, json_encode($backup, JSON_PRETTY_PRINT));
 
-        $this->price_update_cleanup();
-        Toastr::success(count($backup) . ' product price(s) updated. Backup: storage/app/' . $bf);
-        return redirect()->route('admin.products.price-update');
+        $job = PriceUpdateJob::create([
+            'file_path'          => 'price_update/' . $token . '.ndjson',
+            'backup_path'        => 'backups/price_update_backup_' . $token . '.ndjson',
+            'not_found_path'     => 'price_update/not_found_' . $token . '.ndjson',
+            'original_file_name' => session('price_update_filename'),
+            'status'             => 'pending',
+            'total_rows'         => $total,
+            'import_options'     => session('price_update_options') ?? [],
+            'admin_id'           => auth('admin')->id(),
+        ]);
+
+        // The job owns the temp data file now — drop session pointers WITHOUT deleting it.
+        session()->forget(['price_update_token', 'price_update_filename', 'price_update_options', 'price_update_total', 'price_update_summary']);
+
+        return redirect()->route('admin.product.price-update-progress', ['job' => $job->id]);
     }
 
-    /** Download the not-found product codes (from the current preview) as CSV. */
-    public function price_update_not_found_export()
+    /** Live progress page for a background price-update job. */
+    public function price_update_progress($id)
     {
-        $path = $this->price_update_path();
-        $notFound = [];
-        if ($path) {
-            $data = json_decode((string) file_get_contents($path), true) ?: [];
-            $notFound = $data['not_found'] ?? [];
+        $job = PriceUpdateJob::findOrFail($id);
+        return view('admin-views.product.price-update-progress', ['job' => $job]);
+    }
+
+    /** Read-only JSON snapshot of a job's progress (polled by the progress page). */
+    public function price_update_progress_status($id)
+    {
+        $job = PriceUpdateJob::findOrFail($id);
+        return response()->json($this->price_update_job_payload($job));
+    }
+
+    /**
+     * Process the next chunk of a price-update job and return updated progress as JSON.
+     * Driven by the progress page in a loop; a cache lock prevents two tabs double-processing.
+     */
+    public function price_update_process_chunk($id)
+    {
+        set_time_limit(0);
+        $job = PriceUpdateJob::findOrFail($id);
+        if ($job->isFinished()) {
+            return response()->json($this->price_update_job_payload($job));
         }
 
+        $lock = Cache::lock('price_update_job_' . $job->id, 120);
+        if (!$lock->get()) {
+            return response()->json($this->price_update_job_payload($job));
+        }
+
+        try {
+            $job->refresh();
+            if ($job->isFinished()) {
+                return response()->json($this->price_update_job_payload($job));
+            }
+            if ($job->status === 'pending') {
+                $job->status = 'processing';
+                $job->started_at = now();
+                $job->save();
+            }
+
+            PriceUpdater::processChunk($job, 500);
+
+            if ($job->processed_rows >= $job->total_rows) {
+                $this->price_update_finalize($job);
+            }
+        } catch (\Throwable $e) {
+            $job->status = 'failed';
+            $job->error_message = $e->getMessage();
+            $job->completed_at = now();
+            $job->save();
+            \Illuminate\Support\Facades\Log::error('Price update job ' . $job->id . ' failed: ' . $e->getMessage());
+        } finally {
+            optional($lock)->release();
+        }
+
+        return response()->json($this->price_update_job_payload($job));
+    }
+
+    /** Finalise a completed job: convert the backup NDJSON to a restorable .json array, tidy temp files. */
+    private function price_update_finalize(PriceUpdateJob $job): void
+    {
+        if ($job->backup_path && Storage::disk('local')->exists($job->backup_path)) {
+            $arr = [];
+            $bh = fopen(Storage::disk('local')->path($job->backup_path), 'r');
+            if ($bh) {
+                while (($l = fgets($bh)) !== false) {
+                    $l = trim($l);
+                    if ($l === '') { continue; }
+                    $o = json_decode($l, true);
+                    if (is_array($o)) { $arr[] = $o; }
+                }
+                fclose($bh);
+            }
+            $finalPath = 'backups/price_update_backup_' . $job->id . '_' . now()->format('Ymd_His') . '.json';
+            Storage::disk('local')->put($finalPath, json_encode($arr, JSON_PRETTY_PRINT));
+            Storage::disk('local')->delete($job->backup_path);
+            $job->backup_path = $finalPath; // keep the JSON-array backup for --restore
+        }
+
+        // Remove the temp data file (the not-found file is kept for export).
+        if ($job->file_path && Storage::disk('local')->exists($job->file_path)) {
+            Storage::disk('local')->delete($job->file_path);
+        }
+
+        $job->status = 'completed';
+        $job->completed_at = now();
+        $job->save();
+    }
+
+    /** Shared JSON shape for the price-update status + process-chunk endpoints. */
+    private function price_update_job_payload(PriceUpdateJob $job): array
+    {
+        return [
+            'status'          => $job->status,
+            'total_rows'      => $job->total_rows,
+            'processed_rows'  => $job->processed_rows,
+            'percentage'      => $job->percentage(),
+            'updated_count'   => $job->updated_count,
+            'skipped_count'   => $job->skipped_count,
+            'not_found_count' => $job->not_found_count,
+            'failed_count'    => $job->failed_count,
+            'error_message'   => $job->error_message,
+            'backup_file'     => $job->isFinished() ? $job->backup_path : null,
+            'has_not_found'   => $job->not_found_count > 0,
+            'updated_at'      => optional($job->updated_at)->toDateTimeString(),
+        ];
+    }
+
+    /** Download the not-found product codes for a finished job as CSV (streamed from its NDJSON). */
+    public function price_update_not_found_export($id)
+    {
+        $job = PriceUpdateJob::findOrFail($id);
+        $abs = $job->not_found_path ? Storage::disk('local')->path($job->not_found_path) : null;
+
         $filename = 'price_update_not_found_' . now()->format('Ymd_His') . '.csv';
-        return response()->streamDownload(function () use ($notFound) {
+        return response()->streamDownload(function () use ($abs) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['product_code']);
-            foreach ($notFound as $c) {
-                fputcsv($out, [$c]);
+            if ($abs && is_file($abs)) {
+                $fh = fopen($abs, 'r');
+                if ($fh) {
+                    while (($l = fgets($fh)) !== false) {
+                        $l = trim($l);
+                        if ($l !== '') { fputcsv($out, [$l]); }
+                    }
+                    fclose($fh);
+                }
             }
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);

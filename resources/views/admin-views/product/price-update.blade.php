@@ -19,112 +19,119 @@
                 <div class="card border-primary">
                     <div class="card-body">
                         <h5 class="mb-4 text-primary"><i class="tio-info-outined"></i> {{\App\CPU\translate('Safe price-only update')}} :</h5>
-                        <p> 1. {{\App\CPU\translate('This matches existing products by product_code (SKU / manufacturer part number) and updates ONLY the prices.')}}</p>
+                        <p> 1. {{\App\CPU\translate('Matches existing products by product_code (SKU / MPN / Manufacturer Part Number) and updates ONLY the prices.')}}</p>
                         <p> 2. {{\App\CPU\translate('It NEVER changes name, brand, category, description, images, stock, slug or live status — and never creates new products.')}}</p>
-                        <p> 3. {{\App\CPU\translate('Provide unit_price and/or purchase_price (or supplier_price + the defaults below). Blank price fields are left untouched.')}}</p>
-                        <p> 4. {{\App\CPU\translate('You always see an old → new preview before anything is written. Codes not found in the catalogue are listed and downloadable.')}}</p>
+                        <p> 3. {{\App\CPU\translate('Provide unit_price and/or purchase_price (or supplier_price / Price [EUR] / price + the defaults below). Blank price fields are left untouched.')}}</p>
+                        <p> 4. {{\App\CPU\translate('The preview is instant — it shows only the first 40 rows. The whole file is matched and applied in the background with a live progress bar.')}}</p>
                         <p> 5. {{\App\CPU\translate('Every apply writes a reversible JSON backup to storage/app/backups/ so prices can be restored.')}}</p>
                     </div>
                 </div>
 
-                {{-- ===================== PREVIEW (after upload, before confirm) ===================== --}}
+                {{-- ===================== PREVIEW (after upload, before apply) ===================== --}}
                 @isset($summary)
                     <div class="card mt-2 border-info">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <div class="card-header bg-light">
                             <h4 class="mb-0 text-info"><i class="tio-visible-outlined"></i> {{\App\CPU\translate('Preview')}} — {{\App\CPU\translate('nothing has been changed yet')}}</h4>
-                            @if($summary['not_found'] > 0)
-                                <a href="{{route('admin.product.price-update-not-found')}}" class="btn btn-sm btn-outline-danger">
-                                    <i class="tio-download-to"></i> {{\App\CPU\translate('Download not-found codes')}} ({{ $summary['not_found'] }})
-                                </a>
-                            @endif
                         </div>
                         <div class="card-body">
-                            <table class="table table-sm table-bordered mb-0">
-                                <tbody>
-                                    <tr><th>{{\App\CPU\translate('Rows read')}}</th><td>{{ $summary['processed'] }}</td>
-                                        <th>{{\App\CPU\translate('Matched (found by code)')}}</th><td>{{ $summary['matched'] }}</td></tr>
-                                    <tr class="text-primary"><th>{{\App\CPU\translate('Will change')}}</th><td>{{ $summary['changed'] }}</td>
-                                        <th class="text-danger">{{\App\CPU\translate('Not found')}}</th><td class="text-danger">{{ $summary['not_found'] }}</td></tr>
-                                    <tr><th>{{\App\CPU\translate('Skipped (no price / already same)')}}</th><td>{{ $summary['skipped'] }}</td>
-                                        <th>{{\App\CPU\translate('Invalid price (e.g. selling < purchase)')}}</th><td>{{ $summary['invalid'] }}</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    @if(!empty($sample))
-                        <div class="card mt-2 border-success">
-                            <div class="card-header bg-light">
-                                <h4 class="mb-0 text-success"><i class="tio-file-text-outlined"></i> {{\App\CPU\translate('Price changes')}} ({{ $summary['changed'] }})</h4>
-                                @if($summary['changed'] > count($sample))
-                                    <small class="text-muted">{{\App\CPU\translate('Showing the first')}} {{ count($sample) }} {{\App\CPU\translate('as a sample. All')}} {{ $summary['changed'] }} {{\App\CPU\translate('will be applied on confirm.')}}</small>
-                                @endif
-                                <small class="text-muted d-block">{{\App\CPU\translate('Values shown are the stored amounts (USD), as saved on the product.')}}</small>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-hover text-center">
-                                        <thead class="thead-light">
-                                            <tr>
-                                                <th>{{\App\CPU\translate('Product ID')}}</th>
-                                                <th>{{\App\CPU\translate('Code')}}</th>
-                                                <th>{{\App\CPU\translate('Unit Price')}} ({{\App\CPU\translate('old → new')}})</th>
-                                                <th>{{\App\CPU\translate('Purchase Price')}} ({{\App\CPU\translate('old → new')}})</th>
-                                                <th>{{\App\CPU\translate('Discount')}}</th>
-                                            </tr>
-                                        </thead>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <table class="table table-sm table-bordered mb-2">
                                         <tbody>
-                                            @foreach($sample as $c)
-                                                <tr>
-                                                    <td>{{ $c['id'] }}</td>
-                                                    <td class="font-weight-bold">{{ $c['product_code'] }}</td>
-                                                    <td>
-                                                        @if(isset($c['new']['unit_price']))
-                                                            <span class="text-muted">{{ number_format($c['old']['unit_price'], 2) }}</span>
-                                                            &rarr; <span class="text-success font-weight-bold">{{ number_format($c['new']['unit_price'], 2) }}</span>
-                                                        @else <span class="text-muted">—</span> @endif
-                                                    </td>
-                                                    <td>
-                                                        @if(isset($c['new']['purchase_price']))
-                                                            <span class="text-muted">{{ number_format($c['old']['purchase_price'], 2) }}</span>
-                                                            &rarr; <span class="text-success font-weight-bold">{{ number_format($c['new']['purchase_price'], 2) }}</span>
-                                                        @else <span class="text-muted">—</span> @endif
-                                                    </td>
-                                                    <td>
-                                                        @if(isset($c['new']['discount']))
-                                                            {{ number_format($c['new']['discount'], 2) }}{{ ($c['new']['discount_type'] ?? '') === 'percent' ? '%' : '' }}
-                                                        @else <span class="text-muted">—</span> @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
+                                            <tr><th>{{\App\CPU\translate('Total rows read')}}</th><td>{{ number_format($summary['total_rows']) }}</td></tr>
+                                            <tr><th>{{\App\CPU\translate('Preview rows shown')}}</th><td>{{ $summary['preview_rows'] }}</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
+                                <div class="col-md-8">
+                                    <label class="input-label mb-1">{{\App\CPU\translate('Detected columns')}}</label>
+                                    <div>
+                                        @foreach($summary['columns'] as $col)
+                                            <span class="badge badge-soft-secondary mb-1">{{ $col }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-muted mb-0">
+                                <i class="tio-info-outined"></i>
+                                {{\App\CPU\translate('Showing the first')}} {{ $summary['preview_rows'] }} {{\App\CPU\translate('rows. The full file will be matched and applied during apply — exact matched / not-found / updated counts are calculated then.')}}
+                            </p>
+                        </div>
+                    </div>
 
-                                <form action="{{route('admin.product.price-update-apply')}}" method="POST" class="mt-4 d-flex justify-content-end" id="confirm-price-form">
-                                    @csrf
-                                    <a href="{{route('admin.product.price-update')}}" class="btn btn-secondary mr-3">{{\App\CPU\translate('Cancel')}}</a>
-                                    <button type="submit" class="btn btn-success" id="confirm-price-btn" {{ $summary['changed'] === 0 ? 'disabled' : '' }}>
-                                        <i class="tio-save"></i> {{\App\CPU\translate('Confirm & Update')}} {{ $summary['changed'] }} {{\App\CPU\translate('Price(s)')}}
-                                    </button>
-                                </form>
-                                <script>
-                                    document.getElementById('confirm-price-form').addEventListener('submit', function () {
-                                        var btn = document.getElementById('confirm-price-btn');
-                                        btn.disabled = true;
-                                        btn.innerHTML = '<i class="tio-sync"></i> {{\App\CPU\translate('Updating prices...')}}';
-                                    });
-                                </script>
-                            </div>
+                    <div class="card mt-2 border-success">
+                        <div class="card-header bg-light">
+                            <h4 class="mb-0 text-success"><i class="tio-file-text-outlined"></i> {{\App\CPU\translate('Sample of changes')}}</h4>
+                            <small class="text-muted d-block">{{\App\CPU\translate('Prices shown are the stored amounts (USD), as saved on the product.')}}</small>
                         </div>
-                    @else
-                        <div class="card mt-2">
-                            <div class="card-body text-center text-muted">
-                                {{\App\CPU\translate('No price changes were found in this file (every matched product already has these prices).')}}
-                                <div class="mt-3"><a href="{{route('admin.product.price-update')}}" class="btn btn-primary">{{\App\CPU\translate('Upload Another File')}}</a></div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover text-center">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>{{\App\CPU\translate('Row')}} #</th>
+                                            <th>{{\App\CPU\translate('Code')}}</th>
+                                            <th class="text-left">{{\App\CPU\translate('Product Name')}}</th>
+                                            <th>{{\App\CPU\translate('Purchase')}} ({{\App\CPU\translate('old → new')}})</th>
+                                            <th>{{\App\CPU\translate('Selling')}} ({{\App\CPU\translate('old → new')}})</th>
+                                            <th>{{\App\CPU\translate('Status')}}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($sample as $row)
+                                            <tr>
+                                                <td>{{ $row['row'] }}</td>
+                                                <td class="font-weight-bold">{{ $row['product_code'] }}</td>
+                                                <td class="text-left">{{ \Illuminate\Support\Str::limit($row['name'], 60) }}</td>
+                                                <td>
+                                                    @if($row['old_purchase'] !== null)
+                                                        <span class="text-muted">{{ number_format($row['old_purchase'], 2) }}</span>
+                                                        @if($row['new_purchase'] !== null && $row['status'] === 'will_update')
+                                                            &rarr; <span class="text-success font-weight-bold">{{ number_format($row['new_purchase'], 2) }}</span>
+                                                        @endif
+                                                    @else <span class="text-muted">—</span> @endif
+                                                </td>
+                                                <td>
+                                                    @if($row['old_unit'] !== null)
+                                                        <span class="text-muted">{{ number_format($row['old_unit'], 2) }}</span>
+                                                        @if($row['new_unit'] !== null && $row['status'] === 'will_update')
+                                                            &rarr; <span class="text-success font-weight-bold">{{ number_format($row['new_unit'], 2) }}</span>
+                                                        @endif
+                                                    @else <span class="text-muted">—</span> @endif
+                                                </td>
+                                                <td>
+                                                    @if($row['status'] === 'will_update')
+                                                        <span class="badge badge-soft-success">{{\App\CPU\translate('will update')}}</span>
+                                                    @elseif($row['status'] === 'not_found')
+                                                        <span class="badge badge-soft-danger">{{\App\CPU\translate('not found')}}</span>
+                                                    @else
+                                                        <span class="badge badge-soft-secondary">{{\App\CPU\translate('skipped')}}</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr><td colspan="6" class="text-muted">{{\App\CPU\translate('No rows with a product code were found to preview.')}}</td></tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
+
+                            <form action="{{route('admin.product.price-update-apply')}}" method="POST" class="mt-4 d-flex justify-content-end" id="confirm-price-form">
+                                @csrf
+                                <a href="{{route('admin.product.price-update')}}" class="btn btn-secondary mr-3">{{\App\CPU\translate('Cancel')}}</a>
+                                <button type="submit" class="btn btn-success" id="confirm-price-btn">
+                                    <i class="tio-save"></i> {{\App\CPU\translate('Apply Prices for all')}} {{ number_format($summary['total_rows']) }} {{\App\CPU\translate('rows')}}
+                                </button>
+                            </form>
+                            <script>
+                                document.getElementById('confirm-price-form').addEventListener('submit', function () {
+                                    var btn = document.getElementById('confirm-price-btn');
+                                    btn.disabled = true;
+                                    btn.innerHTML = '<i class="tio-sync"></i> {{\App\CPU\translate('Starting...')}}';
+                                });
+                            </script>
                         </div>
-                    @endif
+                    </div>
                 @endisset
 
                 {{-- ===================== UPLOAD FORM ===================== --}}
@@ -141,14 +148,14 @@
                                                 <input type="file" name="products_file" class="custom-file-input" id="products_file" accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" required>
                                                 <label class="custom-file-label" for="products_file">{{\App\CPU\translate('Choose_File')}}</label>
                                             </div>
-                                            <small class="text-muted">{{\App\CPU\translate('Must contain a product_code (SKU / MPN) column plus unit_price and/or purchase_price (or supplier_price).')}}</small>
+                                            <small class="text-muted">{{\App\CPU\translate('Must contain a product_code (or SKU / Part# / MPN / Manufacturer Part Number) column plus unit_price and/or purchase_price (or supplier_price / Price [EUR] / price).')}}</small>
                                         </div>
                                     </div>
                                 </div>
 
                                 <hr>
                                 <h6 class="text-primary mb-3"><i class="tio-settings"></i> {{\App\CPU\translate('Optional Defaults')}}
-                                    <small class="text-muted">({{\App\CPU\translate('used only when a price cell needs conversion / margin; row values always win')}})</small>
+                                    <small class="text-muted">({{\App\CPU\translate('used only when a supplier/cost price needs conversion or margin; row values always win')}})</small>
                                 </h6>
                                 <div class="row">
                                     <div class="col-md-3 form-group">

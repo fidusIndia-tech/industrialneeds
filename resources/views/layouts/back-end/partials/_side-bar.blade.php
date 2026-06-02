@@ -369,7 +369,7 @@
                                             class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">{{\App\CPU\translate('Attribute')}}</span>
                                     </a>
                                 </li>
-                                <li class="navbar-vertical-aside-has-menu {{(Request::is('admin/product/list/in_house') || Request::is('admin/product/bulk-import') || Request::is('admin/product/image-pipeline*'))?'active':''}}">
+                                <li class="navbar-vertical-aside-has-menu {{(Request::is('admin/product/list/in_house') || Request::is('admin/product/bulk-import') || Request::is('admin/product/price-update*') || Request::is('admin/product/image-pipeline*'))?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link nav-link-toggle"
                                     href="javascript:">
                                         <i class="tio-shop nav-icon"></i>
@@ -378,7 +378,7 @@
                                         </span>
                                     </a>
                                     <ul class="js-navbar-vertical-aside-submenu nav nav-sub"
-                                        style="display: {{(Request::is('admin/product/list/in_house') || Request::is('admin/product/stock-limit-list/in_house') || Request::is('admin/product/bulk-import') || Request::is('admin/product/image-pipeline*'))?'block':''}}">
+                                        style="display: {{(Request::is('admin/product/list/in_house') || Request::is('admin/product/stock-limit-list/in_house') || Request::is('admin/product/bulk-import') || Request::is('admin/product/price-update*') || Request::is('admin/product/image-pipeline*'))?'block':''}}">
                                         <li class="nav-item {{Request::is('admin/product/list/in_house')?'active':''}}">
                                             <a class="nav-link " href="{{route('admin.product.list',['in_house', ''])}}">
                                                 <span class="tio-circle nav-indicator-icon"></span>
@@ -399,6 +399,12 @@
                                             <a class="nav-link " href="{{route('admin.product.bulk-import')}}">
                                                 <span class="tio-circle nav-indicator-icon"></span>
                                                 <span class="text-truncate">{{\App\CPU\translate('bulk_Import')}}</span>
+                                            </a>
+                                        </li>
+                                        <li class="nav-item {{Request::is('admin/product/price-update*')?'active':''}}">
+                                            <a class="nav-link " href="{{route('admin.product.price-update')}}">
+                                                <span class="tio-circle nav-indicator-icon"></span>
+                                                <span class="text-truncate">{{\App\CPU\translate('Update Prices')}}</span>
                                             </a>
                                         </li>
                                         <li class="nav-item {{Request::is('admin/product/image-pipeline*')?'active':''}}">

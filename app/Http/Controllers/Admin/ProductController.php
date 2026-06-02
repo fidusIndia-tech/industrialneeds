@@ -7,6 +7,7 @@ use App\Exports\FullProductExport;
 use App\CPU\BackEndHelper;
 use App\CPU\BulkImportHelper;
 use App\CPU\BulkImportProcessor;
+use App\CPU\PriceUpdater;
 use App\CPU\Helpers;
 use App\Model\ProductImportJob;
 use Illuminate\Support\Facades\Cache;
@@ -1492,6 +1493,136 @@ class ProductController extends BaseController
             ->select('image_status', DB::raw('count(*) as c'))->groupBy('image_status')->pluck('c', 'image_status');
 
         return view('admin-views.product.image-gallery', compact('products', 'status', 'source', 'counts'));
+    }
+
+    // ───────────────────────────── Price-only update (admin UI) ─────────────────────────────
+    // Match existing products by product_code and update ONLY the price columns (unit_price,
+    // purchase_price, discount, discount_type). Never creates products, never touches name/brand/
+    // category/description/images/stock/live status. Two steps: upload→preview (read-only), then
+    // confirm→apply (with a reversible JSON backup). Shares all logic with the CLI via PriceUpdater.
+
+    /** Absolute path of the temp JSON holding {changes, not_found} for the confirm step, or null. */
+    private function price_update_path(): ?string
+    {
+        $token = session()->get('price_update_token');
+        if (!$token) {
+            return null;
+        }
+        $path = 'price_update/' . $token . '.json';
+        return Storage::disk('local')->exists($path) ? Storage::disk('local')->path($path) : null;
+    }
+
+    /** Delete the temp preview file (if any) and drop the session keys. */
+    private function price_update_cleanup(): void
+    {
+        $token = session()->get('price_update_token');
+        if ($token) {
+            $path = 'price_update/' . $token . '.json';
+            if (Storage::disk('local')->exists($path)) {
+                Storage::disk('local')->delete($path);
+            }
+        }
+        session()->forget(['price_update_token', 'price_update_summary']);
+    }
+
+    public function price_update_index()
+    {
+        $this->price_update_cleanup();
+        return view('admin-views.product.price-update');
+    }
+
+    /** Step 1 — read the sheet, analyse against the catalogue (READ-ONLY), show old→new preview. */
+    public function price_update_preview(Request $request)
+    {
+        set_time_limit(0);
+        $request->validate([
+            'products_file' => 'required|file|mimes:xlsx,xls,csv,txt',
+        ]);
+
+        $defaults = [
+            'exchange_rate'       => $request->input('exchange_rate'),
+            'landed_cost_percent' => $request->input('landed_cost_percent'),
+            'margin_percent'      => $request->input('margin_percent'),
+            'rounding'            => $request->input('rounding', 'whole') ?: 'whole',
+            'allow_below'         => (bool) $request->input('allow_below'),
+        ];
+
+        try {
+            $rows = (new FastExcel)->import($request->file('products_file')->getRealPath());
+        } catch (\Throwable $e) {
+            Toastr::error('Could not read the file: ' . $e->getMessage());
+            return back();
+        }
+
+        $res = PriceUpdater::analyze($rows, $defaults);
+        $notFound = array_values(array_unique($res['not_found']));
+
+        // Persist the change set so the confirm step needs no re-upload (sheets can be large).
+        $this->price_update_cleanup();
+        $token = Str::random(40);
+        Storage::disk('local')->put(
+            'price_update/' . $token . '.json',
+            json_encode(['changes' => $res['changes'], 'not_found' => $notFound])
+        );
+        session()->put('price_update_token', $token);
+
+        $summary = [
+            'processed' => $res['processed'], 'matched' => $res['matched'], 'changed' => $res['changed'],
+            'skipped'   => $res['skipped'],   'invalid' => $res['invalid'], 'not_found' => count($notFound),
+        ];
+        session()->put('price_update_summary', $summary);
+
+        $sample = array_slice($res['changes'], 0, 100);
+        return view('admin-views.product.price-update', compact('sample', 'summary', 'notFound'));
+    }
+
+    /** Step 2 — apply the previewed price changes (price columns only) with a reversible backup. */
+    public function price_update_apply(Request $request)
+    {
+        set_time_limit(0);
+        $path = $this->price_update_path();
+        if (!$path) {
+            Toastr::error('Your preview expired. Please upload the file again.');
+            return redirect()->route('admin.products.price-update');
+        }
+
+        $data = json_decode((string) file_get_contents($path), true) ?: [];
+        $changes = $data['changes'] ?? [];
+        if (empty($changes)) {
+            Toastr::warning('No price changes to apply.');
+            return redirect()->route('admin.products.price-update');
+        }
+
+        $backup = PriceUpdater::applyChanges($changes);
+
+        Storage::disk('local')->makeDirectory('backups');
+        $bf = 'backups/price_update_backup_' . now()->format('Ymd_His') . '.json';
+        Storage::disk('local')->put($bf, json_encode($backup, JSON_PRETTY_PRINT));
+
+        $this->price_update_cleanup();
+        Toastr::success(count($backup) . ' product price(s) updated. Backup: storage/app/' . $bf);
+        return redirect()->route('admin.products.price-update');
+    }
+
+    /** Download the not-found product codes (from the current preview) as CSV. */
+    public function price_update_not_found_export()
+    {
+        $path = $this->price_update_path();
+        $notFound = [];
+        if ($path) {
+            $data = json_decode((string) file_get_contents($path), true) ?: [];
+            $notFound = $data['not_found'] ?? [];
+        }
+
+        $filename = 'price_update_not_found_' . now()->format('Ymd_His') . '.csv';
+        return response()->streamDownload(function () use ($notFound) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['product_code']);
+            foreach ($notFound as $c) {
+                fputcsv($out, [$c]);
+            }
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     /**

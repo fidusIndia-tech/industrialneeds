@@ -306,6 +306,15 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::get('image-pipeline/status', 'ProductController@image_pipeline_status')->name('image-pipeline-status');
             Route::get('image-pipeline/review-export', 'ProductController@image_review_export')->name('image-pipeline-review-export');
             Route::get('image-pipeline/gallery', 'ProductController@image_gallery')->name('image-pipeline-gallery');
+            // Price-only update: match by product_code, update price columns only.
+            // Upload → fast preview → chunked background apply with a live progress page.
+            Route::get('price-update', 'ProductController@price_update_index')->name('price-update');
+            Route::post('price-update/preview', 'ProductController@price_update_preview')->name('price-update-preview');
+            Route::post('price-update/apply', 'ProductController@price_update_apply')->name('price-update-apply');
+            Route::get('price-update/progress/{job}', 'ProductController@price_update_progress')->name('price-update-progress');
+            Route::get('price-update/progress/{job}/status', 'ProductController@price_update_progress_status')->name('price-update-progress-status');
+            Route::post('price-update/process/{job}', 'ProductController@price_update_process_chunk')->name('price-update-process');
+            Route::get('price-update/{job}/not-found', 'ProductController@price_update_not_found_export')->name('price-update-not-found');
             Route::get('bulk-export', 'ProductController@bulk_export_data')->name('bulk-export');
             Route::get('barcode/{id}', 'ProductController@barcode')->name('barcode');
             Route::get('barcode/generate', 'ProductController@barcode_generate')->name('barcode.generate');

@@ -62,98 +62,37 @@ class UpdateProductPrices extends Command
             'allow_below'         => (bool) $this->option('allow-below'),
         ];
 
-        $matched = 0; $changed = 0; $skipped = 0; $invalid = 0;
-        $notFound = [];
+        $res = \App\CPU\PriceUpdater::analyze($rows, $defaults, $limit);
+
+        // sample preview table
         $samples = [];
-        $changeRows = [];   // full change log for the CSV report
-        $backup = [];
-        $processed = 0;
-
-        foreach ($rows as $row) {
-            if ($limit > 0 && $processed >= $limit) break;
-            $processed++;
-
-            $r = BulkImportHelper::mapRow((array) $row);
-            $code = trim((string) ($r['product_code'] ?? ''));
-            if ($code === '') { $skipped++; continue; }
-
-            // Decide which price fields this row actually provides (never reset unspecified fields).
-            $hasSupplier = is_numeric($r['supplier_price'] ?? null);
-            $hasUnit     = is_numeric($r['unit_price'] ?? null) || $hasSupplier;
-            $hasPurchase = is_numeric($r['purchase_price'] ?? null) || $hasSupplier;
-            $hasDiscount = isset($r['discount']) && $r['discount'] !== '' && is_numeric($r['discount']);
-            if (!$hasUnit && !$hasPurchase && !$hasDiscount) { $skipped++; continue; }
-
-            $price = BulkImportHelper::computePricing($r, $defaults);
-            if (isset($price['error'])) { $invalid++; continue; } // e.g. unit < purchase (unless --allow-below)
-
-            // Build the price-only update (store currency -> USD, matching import storage).
-            $new = [];
-            if ($hasUnit)     { $new['unit_price'] = BackEndHelper::currency_to_usd($price['unit_price']); }
-            if ($hasPurchase) { $new['purchase_price'] = BackEndHelper::currency_to_usd($price['purchase_price']); }
-            if ($hasDiscount) {
-                $new['discount'] = $price['discount'];
-                if (!empty($r['discount_type'])) { $new['discount_type'] = $price['discount_type']; }
-            }
-
-            $product = DB::table('products')->where('product_code', $code)->first();
-            if (!$product) { $notFound[] = $code; continue; }
-            $matched++;
-
-            // Compare to current — only count/record a real change.
-            $diff = [];
-            foreach ($new as $k => $v) {
-                if ($k === 'discount_type') {
-                    if ((string) $product->$k !== (string) $v) { $diff[$k] = [$product->$k, $v]; }
-                } elseif (round((float) $product->$k, 4) !== round((float) $v, 4)) {
-                    $diff[$k] = [$product->$k, $v];
-                }
-            }
-            if (empty($diff)) { $skipped++; continue; }
-
-            $changed++;
-            $changeRows[] = [
-                'product_code' => $code,
-                'old_unit' => $product->unit_price, 'new_unit' => $new['unit_price'] ?? $product->unit_price,
-                'old_purchase' => $product->purchase_price, 'new_purchase' => $new['purchase_price'] ?? $product->purchase_price,
+        foreach (array_slice($res['changes'], 0, 30) as $c) {
+            $samples[] = [
+                $c['product_code'],
+                isset($c['new']['unit_price']) ? round($c['old']['unit_price'], 2) . ' → ' . round($c['new']['unit_price'], 2) : '—',
+                isset($c['new']['purchase_price']) ? round($c['old']['purchase_price'], 2) . ' → ' . round($c['new']['purchase_price'], 2) : '—',
             ];
-            if (count($samples) < 30) {
-                $samples[] = [
-                    $code,
-                    isset($new['unit_price']) ? round($product->unit_price, 2) . ' → ' . round($new['unit_price'], 2) : '—',
-                    isset($new['purchase_price']) ? round($product->purchase_price, 2) . ' → ' . round($new['purchase_price'], 2) : '—',
-                ];
-            }
-
-            if ($apply) {
-                $backup[] = ['id' => $product->id, 'unit_price' => $product->unit_price, 'purchase_price' => $product->purchase_price, 'discount' => $product->discount, 'discount_type' => $product->discount_type];
-                $new['updated_at'] = now();
-                DB::table('products')->where('id', $product->id)->update($new); // ONLY price columns
-            }
         }
-
-        // ---- report ----
         if ($samples) {
             $this->info('Sample changes (old → new, stored units):');
             $this->table(['product_code', 'unit_price', 'purchase_price'], $samples);
         }
-        $this->info("Rows: {$processed}   Matched: {$matched}   Changed: {$changed}   Not found: " . count(array_unique($notFound)) . "   Skipped: {$skipped}   Invalid price: {$invalid}");
+        $nfUnique = array_values(array_unique($res['not_found']));
+        $this->info("Rows: {$res['processed']}   Matched: {$res['matched']}   Changed: {$res['changed']}   Not found: " . count($nfUnique) . "   Skipped: {$res['skipped']}   Invalid price: {$res['invalid']}");
 
-        // export not-found
-        if ($notFound) {
+        if ($nfUnique) {
             Storage::disk('local')->makeDirectory('reports');
             $nf = 'reports/price_update_not_found_' . now()->format('Ymd_His') . '.csv';
             $fh = fopen(Storage::disk('local')->path($nf), 'w'); fputcsv($fh, ['product_code']);
-            foreach (array_unique($notFound) as $c) { fputcsv($fh, [$c]); }
+            foreach ($nfUnique as $c) { fputcsv($fh, [$c]); }
             fclose($fh);
-            $this->warn(count(array_unique($notFound)) . ' not-found product(s) → ' . Storage::disk('local')->path($nf));
+            $this->warn(count($nfUnique) . ' not-found product(s) → ' . Storage::disk('local')->path($nf));
         }
-        // full change log
-        if ($changeRows) {
+        if ($res['changes']) {
             Storage::disk('local')->makeDirectory('reports');
             $cf = 'reports/price_update_changes_' . now()->format('Ymd_His') . '.csv';
             $fh = fopen(Storage::disk('local')->path($cf), 'w'); fputcsv($fh, ['product_code', 'old_unit_price', 'new_unit_price', 'old_purchase_price', 'new_purchase_price']);
-            foreach ($changeRows as $c) { fputcsv($fh, [$c['product_code'], $c['old_unit'], $c['new_unit'], $c['old_purchase'], $c['new_purchase']]); }
+            foreach ($res['changes'] as $c) { fputcsv($fh, [$c['product_code'], $c['old']['unit_price'], $c['new']['unit_price'] ?? $c['old']['unit_price'], $c['old']['purchase_price'], $c['new']['purchase_price'] ?? $c['old']['purchase_price']]); }
             fclose($fh);
             $this->line('Full change list → ' . Storage::disk('local')->path($cf));
         }
@@ -163,6 +102,7 @@ class UpdateProductPrices extends Command
             return 0;
         }
 
+        $backup = \App\CPU\PriceUpdater::applyChanges($res['changes']);
         Storage::disk('local')->makeDirectory('backups');
         $bf = 'backups/price_update_backup_' . now()->format('Ymd_His') . '.json';
         Storage::disk('local')->put($bf, json_encode($backup, JSON_PRETTY_PRINT));

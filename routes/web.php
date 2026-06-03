@@ -20,10 +20,11 @@ use Illuminate\Support\Facades\Mail;
 //for maintenance mode
 Route::get('maintenance-mode', 'Web\WebController@maintenance_mode')->name('maintenance-mode');
 
-// Dynamic XML sitemap for search engines (no maintenance middleware so crawlers
-// can always fetch it). Served by Laravel; the stale static public/sitemap.xml
-// was removed so this route takes effect.
-Route::get('sitemap.xml', 'Web\SitemapController@index')->name('sitemap.xml');
+// Public XML sitemap temporarily DISABLED — it was causing high PHP/DB load on
+// the live site. /sitemap.xml now returns a fast 410 via the root .htaccess
+// (no Laravel bootstrap). To re-enable: restore Web\SitemapController + the
+// resources/views/sitemap.blade.php view (see git history) and the .htaccess rule.
+// Route::get('sitemap.xml', 'Web\SitemapController@index')->name('sitemap.xml');
 
 
 Route::group(['namespace' => 'Web','middleware'=>['maintenance_mode']], function () {

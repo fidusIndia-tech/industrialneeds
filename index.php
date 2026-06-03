@@ -10,6 +10,17 @@
 define('LARAVEL_START', microtime(true));
 
 /*
+| Buffer output from the very first line. Any stray output emitted during
+| bootstrap (e.g. PHP deprecation/warning notices when display_errors is on)
+| would otherwise be flushed before the response headers are sent, forcing a
+| default "text/html" Content-Type. That silently breaks non-HTML responses
+| such as /sitemap.xml (the browser then renders the XML as HTML). HTML pages
+| are unaffected, which is why the problem only shows up on the sitemap.
+| The sitemap controller clears this buffer before emitting its XML.
+*/
+ob_start();
+
+/*
 |--------------------------------------------------------------------------
 | Register The Auto Loader
 |--------------------------------------------------------------------------

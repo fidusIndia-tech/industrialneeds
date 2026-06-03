@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Model\Brand;
 use App\Model\Category;
 use App\Model\Product;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 
 class SitemapController extends Controller
 {
@@ -19,101 +17,52 @@ class SitemapController extends Controller
     private const BASE_URL = 'https://industrialneeds.co';
 
     /**
-     * Output a dynamically generated, SEO-valid sitemap.xml.
+     * Render a dynamically generated, SEO-valid sitemap.xml.
      *
-     * Includes: homepage, all active/live products, all category listing pages,
-     * and all active brand listing pages. Excludes admin/cart/checkout/login/
-     * wishlist/search/filter pages by design (only known public, indexable URLs).
+     * Includes: homepage, all active/live products (clean /product/{slug} URLs),
+     * all category listing pages, and all active brand listing pages. Excludes
+     * admin/cart/checkout/login/wishlist/search/filter pages by design.
      */
     public function index()
     {
-        // IMPORTANT: an XML response is corrupted by ANY stray output emitted
-        // before it. If display_errors is on (common in production) a single PHP
-        // notice/warning is echoed first, which (a) forces PHP to flush default
-        // "text/html" headers so our application/xml header is ignored, and
-        // (b) prepends junk before "<?xml". The browser then renders the body as
-        // HTML/plain text with tags stripped. Suppress error display for this
-        // route and discard any already-buffered output so the XML is delivered
-        // cleanly with the correct Content-Type.
+        // The XML response is corrupted by ANY output emitted before it. With
+        // display_errors on, PHP deprecation/warning notices are echoed during
+        // bootstrap, which (a) flushes default "text/html" headers so our XML
+        // Content-Type is ignored and (b) prepends junk before "<?xml". index.php
+        // buffers from the first line; here we suppress further error display and
+        // discard whatever was buffered so the XML is emitted cleanly.
         @ini_set('display_errors', '0');
         if (ob_get_level() > 0 && ob_get_length() > 0) {
             @ob_clean();
         }
 
-        $xml = Cache::remember('sitemap.xml', now()->addHours(6), function () {
-            return $this->build();
-        });
+        $base = self::BASE_URL;
 
-        return response($xml, 200, [
-            'Content-Type' => 'application/xml; charset=UTF-8',
-        ]);
-    }
+        // Drop the translate global scope: the sitemap only needs id/slug/dates,
+        // not eager-loaded translations/reviews, so this keeps the query lean.
+        $categories = Category::withoutGlobalScope('translate')
+            ->select('id', 'updated_at')
+            ->orderBy('id')
+            ->get();
 
-    private function build(): string
-    {
-        $urls = [];
+        $brands = Brand::withoutGlobalScope('translate')
+            ->where('status', 1)
+            ->select('id', 'updated_at')
+            ->orderBy('id')
+            ->get();
 
-        // 1. Homepage
-        $urls[] = $this->url(self::BASE_URL . '/', null, 'daily', '1.0');
+        // active() = published + brand active + seller approved (the exact scope
+        // the public product page uses), so only live products are listed.
+        $products = Product::withoutGlobalScope('translate')
+            ->active()
+            ->whereNotNull('slug')
+            ->where('slug', '!=', '')
+            ->select('id', 'slug', 'updated_at')
+            ->orderBy('id')
+            ->get();
 
-        // 2. Category listing pages
-        Category::select('id', 'updated_at')->orderBy('id')->chunk(500, function ($categories) use (&$urls) {
-            foreach ($categories as $category) {
-                $loc = self::BASE_URL . '/products?id=' . $category->id . '&data_from=category&page=1';
-                $urls[] = $this->url($loc, $category->updated_at, 'weekly', '0.8');
-            }
-        });
-
-        // 3. Brand listing pages (only active brands)
-        Brand::where('status', 1)->select('id', 'updated_at')->orderBy('id')->chunk(500, function ($brands) use (&$urls) {
-            foreach ($brands as $brand) {
-                $loc = self::BASE_URL . '/products?id=' . $brand->id . '&data_from=brand&page=1';
-                $urls[] = $this->url($loc, $brand->updated_at, 'weekly', '0.6');
-            }
-        });
-
-        // 4. Active/live product detail pages (same scope used on the public site).
-        //    Uses the clean canonical /product/{slug} URL.
-        Product::active()->select('id', 'slug', 'updated_at')->orderBy('id')->chunk(500, function ($products) use (&$urls) {
-            foreach ($products as $product) {
-                if (empty($product->slug)) {
-                    continue;
-                }
-                $loc = self::BASE_URL . '/product/' . $product->slug;
-                $urls[] = $this->url($loc, $product->updated_at, 'weekly', '0.7');
-            }
-        });
-
-        $body = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $body .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-        $body .= implode('', $urls);
-        $body .= '</urlset>' . "\n";
-
-        return $body;
-    }
-
-    /**
-     * Render a single <url> entry with XML-escaped values.
-     */
-    private function url(string $loc, $lastmod, string $changefreq, string $priority): string
-    {
-        $entry = "    <url>\n";
-        $entry .= '        <loc>' . $this->escape($loc) . "</loc>\n";
-
-        if (!empty($lastmod)) {
-            $date = $lastmod instanceof Carbon ? $lastmod : Carbon::parse($lastmod);
-            $entry .= '        <lastmod>' . $date->format('Y-m-d') . "</lastmod>\n";
-        }
-
-        $entry .= '        <changefreq>' . $changefreq . "</changefreq>\n";
-        $entry .= '        <priority>' . $priority . "</priority>\n";
-        $entry .= "    </url>\n";
-
-        return $entry;
-    }
-
-    private function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        return response()
+            ->view('sitemap', compact('base', 'categories', 'brands', 'products'))
+            ->header('Content-Type', 'application/xml; charset=UTF-8');
     }
 }

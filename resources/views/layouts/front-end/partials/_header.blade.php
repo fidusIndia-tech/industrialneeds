@@ -110,6 +110,72 @@
         text-align: center;
         color:white;
     }
+
+    /* ---- Brands dropdown: search box + live counts (scoped to #brandsDropdownMenu) ---- */
+    .brands-dropdown-menu {
+        min-width: 320px;
+        max-width: 380px;
+        padding-top: 0;
+    }
+    .brands-dropdown-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #ffffff;
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid #e3e9ef;
+        box-shadow: 0 2px 4px rgba(8, 42, 69, 0.06);
+    }
+    .brands-dropdown-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: {{$web_config['primary_color']}};
+        margin-bottom: 8px;
+    }
+    .brands-search-wrap {
+        position: relative;
+    }
+    .brands-search-icon {
+        position: absolute;
+        top: 50%;
+        {{Session::get('direction') === 'rtl' ? 'right' : 'left'}}: 11px;
+        transform: translateY(-50%);
+        font-size: 14px;
+        color: #94a3b8;
+        pointer-events: none;
+    }
+    .brands-search-input {
+        width: 100%;
+        height: 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #082A45;
+        font-size: 13px;
+        line-height: 38px;
+        padding: {{Session::get('direction') === 'rtl' ? '0 34px 0 12px' : '0 12px 0 34px'}};
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .brands-search-input::placeholder { color: #94a3b8; }
+    .brands-search-input:focus {
+        background: #ffffff;
+        border-color: {{$web_config['secondary_color']}};
+        box-shadow: 0 0 0 3px rgba(8, 42, 69, 0.12);
+    }
+    .brands-status {
+        margin-top: 8px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #64748b;
+    }
+    .brands-empty-state {
+        padding: 16px 14px;
+        text-align: center;
+        color: #64748b;
+        font-size: 13px;
+        font-style: italic;
+    }
 </style>
 @php($announcement=\App\CPU\Helpers::get_business_settings('announcement'))
 @if (isset($announcement) && $announcement['status']==1)
@@ -572,12 +638,41 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </li>
 
                         <li class="nav-item dropdown">
+                            @php($header_brands = \App\CPU\BrandManager::get_active_brands())
+                            @php($header_brands_total = count($header_brands))
                             <a class="nav-link dropdown-toggle" href="#"
                                data-toggle="dropdown">{{ \App\CPU\translate('brands') }}</a>
-                            <ul class="dropdown-menu dropdown-menu-{{Session::get('direction') === 'rtl' ? 'right' : 'left'}} scroll-bar"
+                            <ul id="brandsDropdownMenu"
+                                class="dropdown-menu dropdown-menu-{{Session::get('direction') === 'rtl' ? 'right' : 'left'}} scroll-bar brands-dropdown-menu"
                                 style="text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
-                                @foreach(\App\CPU\BrandManager::get_active_brands() as $brand)
-                                    <li style="border-bottom: 1px solid #e3e9ef; display:flex; justify-content:space-between; ">
+                                {{-- Sticky header: title with total count + search box + live status --}}
+                                <li class="brands-dropdown-header" onclick="event.stopPropagation();">
+                                    <div class="brands-dropdown-title">
+                                        {{ \App\CPU\translate('brands') }} (<span id="brandsTotalCount">{{ $header_brands_total }}</span>)
+                                    </div>
+                                    <div class="brands-search-wrap">
+                                        <i class="czi-search brands-search-icon"></i>
+                                        <input type="text" id="brandsSearchInput" class="brands-search-input"
+                                               autocomplete="off"
+                                               placeholder="{{ \App\CPU\translate('Search brands...') }}"
+                                               aria-label="{{ \App\CPU\translate('Search brands...') }}"
+                                               onclick="event.stopPropagation();">
+                                    </div>
+                                    <div class="brands-status" id="brandsSearchStatus"
+                                         data-total="{{ $header_brands_total }}"
+                                         data-all-tpl="{{ \App\CPU\translate('Showing all') }} :total {{ \App\CPU\translate('brands') }}"
+                                         data-filter-tpl="{{ \App\CPU\translate('Showing') }} :shown {{ \App\CPU\translate('of') }} :total {{ \App\CPU\translate('brands') }}">
+                                        {{ \App\CPU\translate('Showing all') }} {{ $header_brands_total }} {{ \App\CPU\translate('brands') }}
+                                    </div>
+                                </li>
+                                {{-- Empty state (shown by JS only when no brand matches the search) --}}
+                                <li class="brands-empty-state" id="brandsEmptyState" style="display:none;">
+                                    {{ \App\CPU\translate('No brands found') }}
+                                </li>
+                                @foreach($header_brands as $brand)
+                                    <li class="brand-item"
+                                        data-brand-name="{{ \Illuminate\Support\Str::lower($brand['name']) }}"
+                                        style="border-bottom: 1px solid #e3e9ef; display:flex; justify-content:space-between; ">
                                         <div>
                                             <a class="dropdown-item"
                                                href="{{route('products',['id'=> $brand['id'],'data_from'=>'brand','page'=>1])}}">
@@ -591,7 +686,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                         </div>
                                     </li>
                                 @endforeach
-                                <li style="border-bottom: 1px solid #e3e9ef; display:flex; justify-content:center;">
+                                <li class="brands-dropdown-footer" style="border-bottom: 1px solid #e3e9ef; display:flex; justify-content:center;">
                                     <div>
                                         <a class="dropdown-item" href="{{route('brands')}}"
                                         style="color: {{$web_config['primary_color']}} !important;">
@@ -673,4 +768,45 @@ document.addEventListener('keydown', function (e) {
         if (el) { el.classList.remove('open'); }
     }
 });
+
+/* Brands dropdown — instant client-side filter over the already-rendered list.
+   No API calls, no libraries; works for both desktop and the mobile collapse menu. */
+(function () {
+    var input  = document.getElementById('brandsSearchInput');
+    var menu   = document.getElementById('brandsDropdownMenu');
+    if (!input || !menu) { return; }
+
+    var items   = menu.querySelectorAll('.brand-item');
+    var empty   = document.getElementById('brandsEmptyState');
+    var status  = document.getElementById('brandsSearchStatus');
+    var total   = status ? parseInt(status.getAttribute('data-total'), 10) || items.length : items.length;
+    var allTpl  = status ? status.getAttribute('data-all-tpl')    : '';
+    var filtTpl = status ? status.getAttribute('data-filter-tpl') : '';
+
+    function applyFilter() {
+        var q = input.value.trim().toLowerCase();
+        var shown = 0;
+
+        for (var i = 0; i < items.length; i++) {
+            var name = items[i].getAttribute('data-brand-name') || '';
+            var match = q === '' || name.indexOf(q) !== -1;
+            items[i].style.display = match ? 'flex' : 'none';
+            if (match) { shown++; }
+        }
+
+        if (empty) { empty.style.display = (shown === 0) ? 'block' : 'none'; }
+
+        if (status) {
+            if (q === '') {
+                status.textContent = allTpl.replace(':total', total);
+            } else {
+                status.textContent = filtTpl.replace(':shown', shown).replace(':total', total);
+            }
+        }
+    }
+
+    input.addEventListener('input', applyFilter);
+    /* Keep typing/clicks inside the search box from closing the Bootstrap dropdown. */
+    input.addEventListener('click', function (e) { e.stopPropagation(); });
+})();
 </script>

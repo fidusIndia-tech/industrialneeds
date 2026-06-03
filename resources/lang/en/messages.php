@@ -2161,4 +2161,8 @@
   'Restore with' => 'Restore With',
   'Download not-found codes' => 'Download Not-found Codes',
   'Update Another File' => 'Update Another File',
+  'Search brands...' => 'Search Brands...',
+  'Showing all' => 'Showing All',
+  'Showing' => 'Showing',
+  'No brands found' => 'No Brands Found',
 );

@@ -23,12 +23,23 @@ class SitemapController extends Controller
      *
      * Includes: homepage, all active/live products, all category listing pages,
      * and all active brand listing pages. Excludes admin/cart/checkout/login/
-     * wishlist/search pages by design (we only emit known public, indexable URLs).
+     * wishlist/search/filter pages by design (only known public, indexable URLs).
      */
     public function index()
     {
-        // Cache the rendered XML to keep crawler hits cheap and avoid timeouts
-        // (Google reports "Couldn't fetch" when the URL is slow/unreachable).
+        // IMPORTANT: an XML response is corrupted by ANY stray output emitted
+        // before it. If display_errors is on (common in production) a single PHP
+        // notice/warning is echoed first, which (a) forces PHP to flush default
+        // "text/html" headers so our application/xml header is ignored, and
+        // (b) prepends junk before "<?xml". The browser then renders the body as
+        // HTML/plain text with tags stripped. Suppress error display for this
+        // route and discard any already-buffered output so the XML is delivered
+        // cleanly with the correct Content-Type.
+        @ini_set('display_errors', '0');
+        if (ob_get_level() > 0 && ob_get_length() > 0) {
+            @ob_clean();
+        }
+
         $xml = Cache::remember('sitemap.xml', now()->addHours(6), function () {
             return $this->build();
         });
@@ -43,7 +54,7 @@ class SitemapController extends Controller
         $urls = [];
 
         // 1. Homepage
-        $urls[] = $this->url(self::BASE_URL, null, 'daily', '1.0');
+        $urls[] = $this->url(self::BASE_URL . '/', null, 'daily', '1.0');
 
         // 2. Category listing pages
         Category::select('id', 'updated_at')->orderBy('id')->chunk(500, function ($categories) use (&$urls) {
@@ -61,7 +72,8 @@ class SitemapController extends Controller
             }
         });
 
-        // 4. Active/live product detail pages (same scope used on the public site)
+        // 4. Active/live product detail pages (same scope used on the public site).
+        //    Uses the clean canonical /product/{slug} URL.
         Product::active()->select('id', 'slug', 'updated_at')->orderBy('id')->chunk(500, function ($products) use (&$urls) {
             foreach ($products as $product) {
                 if (empty($product->slug)) {
@@ -90,7 +102,7 @@ class SitemapController extends Controller
 
         if (!empty($lastmod)) {
             $date = $lastmod instanceof Carbon ? $lastmod : Carbon::parse($lastmod);
-            $entry .= '        <lastmod>' . $date->toAtomString() . "</lastmod>\n";
+            $entry .= '        <lastmod>' . $date->format('Y-m-d') . "</lastmod>\n";
         }
 
         $entry .= '        <changefreq>' . $changefreq . "</changefreq>\n";

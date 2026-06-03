@@ -737,17 +737,26 @@ if (!function_exists('format_price')) {
 
 function translate($key)
 {
+    // Memoize the language file per request/locale. Previously this include ran
+    // on EVERY translate() call (hundreds per page), re-parsing the whole file
+    // each time — a major source of slow page renders.
+    static $lang_arrays = [];
+
     $local = Helpers::default_lang();
     App::setLocale($local);
 
     try {
-        $lang_array = include(base_path('resources/lang/' . $local . '/messages.php'));
+        if (!isset($lang_arrays[$local])) {
+            $lang_arrays[$local] = include(base_path('resources/lang/' . $local . '/messages.php'));
+        }
+        $lang_array = $lang_arrays[$local];
         $processed_key = ucfirst(str_replace('_', ' ', Helpers::remove_invalid_charcaters($key)));
 
         if (!array_key_exists($key, $lang_array)) {
             $lang_array[$key] = $processed_key;
             $str = "<?php return " . var_export($lang_array, true) . ";";
             file_put_contents(base_path('resources/lang/' . $local . '/messages.php'), $str);
+            $lang_arrays[$local] = $lang_array; // keep the in-memory copy in sync
             $result = $processed_key;
         } else {
             $result = __('messages.' . $key);

@@ -33,7 +33,9 @@ use App\User;
 use App\Model\Wishlist;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Session;
 use function App\CPU\translate;
@@ -56,33 +58,92 @@ class WebController extends Controller
         return redirect()->route('home');
     }
 
-    public function home()
+    public function home(Request $request)
     {
-        $home_categories = Category::where('home_status', true)->priority()->get();
-        $home_categories->map(function ($data) {
-            $id = '"'.$data['id'].'"';
-            $data['products'] = Product::active()
-                ->where('category_ids', 'like', "%{$id}%")
-                /*->whereJsonContains('category_ids', ["id" => (string)$data['id']])*/
-                ->inRandomOrder()->take(12)->get();
+        // Temporary profiling switch: open /?home_debug=1 to bypass the cache and
+        // log per-section timing + SQL query counts to storage/logs/laravel.log.
+        $debug = $request->has('home_debug');
+        $cacheKey = 'home_page_data_' . app()->getLocale();
+
+        if ($debug) {
+            Cache::forget($cacheKey);
+        }
+
+        // Cache the (now lightweight) homepage dataset for 15 minutes so repeat
+        // visits never re-run the category/product queries.
+        $data = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($debug) {
+            return $this->build_home_data($debug);
         });
-        //products based on top seller
+
+        return view('web-views.home', $data);
+    }
+
+    /**
+     * Build the homepage dataset. Kept lean (small limits, eager loading, no
+     * ORDER BY RAND over the full products table) so a cache-miss stays fast.
+     */
+    private function build_home_data($debug = false)
+    {
+        if ($debug) {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+        }
+
+        $mark = function ($label, $start, $queriesBefore) use ($debug) {
+            if (!$debug) {
+                return;
+            }
+            $ms = round((microtime(true) - $start) * 1000, 1);
+            $queries = count(DB::getQueryLog()) - $queriesBefore;
+            Log::info("[home_debug] {$label}: {$ms} ms, {$queries} queries");
+        };
+
+        // Custom sections (categorized products). The view renders only the first
+        // 4 home categories with 4 products each, so load just those — and order
+        // by id (cheap, indexed) instead of inRandomOrder() which sorted 8k+ rows.
+        $t = microtime(true); $q = count(DB::getQueryLog());
+        $home_categories = Category::where('home_status', true)->priority()->take(4)->get();
+        $home_categories->map(function ($data) {
+            $id = '"' . $data['id'] . '"';
+            $data['products'] = Product::with(['brand'])->active()
+                ->where('category_ids', 'like', "%{$id}%")
+                ->orderByDesc('id')
+                ->take(6)->get();
+        });
+        $mark('home_categories', $t, $q);
+
+        // Top sellers
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $top_sellers = Seller::approved()->with('shop')
             ->withCount(['orders'])->orderBy('orders_count', 'DESC')->take(12)->get();
-        //end
+        $mark('top_sellers', $t, $q);
 
-        //feature products finding based on selling
-        $featured_products = Product::with(['reviews'])->active()
+        // Featured products (eager load brand to avoid an N+1 in the product card)
+        $t = microtime(true); $q = count(DB::getQueryLog());
+        $featured_products = Product::with(['reviews', 'brand'])->active()
             ->where('featured', 1)
             ->withCount(['order_details'])->orderBy('order_details_count', 'DESC')
             ->take(12)
             ->get();
-        //end
+        $mark('featured_products', $t, $q);
 
-        $latest_products = Product::with(['reviews'])->active()->orderBy('id', 'desc')->take(8)->get();
+        // Latest products
+        $t = microtime(true); $q = count(DB::getQueryLog());
+        $latest_products = Product::with(['reviews', 'brand'])->active()->orderBy('id', 'desc')->take(8)->get();
+        $mark('latest_products', $t, $q);
+
+        // Category navigation
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $categories = Category::where('position', 0)->priority()->take(11)->get();
+        $mark('categories', $t, $q);
+
+        // Brands
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $brands = Brand::active()->take(15)->get();
-        //best sell product
+        $mark('brands', $t, $q);
+
+        // Best sell product
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $bestSellProduct = OrderDetail::with('product.reviews')
             ->whereHas('product', function ($query) {
                 $query->active();
@@ -92,7 +153,10 @@ class WebController extends Controller
             ->orderBy("count", 'desc')
             ->take(4)
             ->get();
-        //Top rated
+        $mark('best_sell', $t, $q);
+
+        // Top rated
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $topRated = Review::with('product')
             ->whereHas('product', function ($query) {
                 $query->active();
@@ -102,6 +166,7 @@ class WebController extends Controller
             ->orderBy("count", 'desc')
             ->take(4)
             ->get();
+        $mark('top_rated', $t, $q);
 
         if ($bestSellProduct->count() == 0) {
             $bestSellProduct = $latest_products;
@@ -111,9 +176,16 @@ class WebController extends Controller
             $topRated = $bestSellProduct;
         }
 
+        // Deal of the day
+        $t = microtime(true); $q = count(DB::getQueryLog());
         $deal_of_the_day = DealOfTheDay::join('products', 'products.id', '=', 'deal_of_the_days.product_id')->select('deal_of_the_days.*', 'products.unit_price')->where('products.status', 1)->where('deal_of_the_days.status', 1)->first();
+        $mark('deal_of_the_day', $t, $q);
 
-        return view('web-views.home', compact('featured_products', 'topRated', 'bestSellProduct', 'latest_products', 'categories', 'brands', 'deal_of_the_day', 'top_sellers', 'home_categories'));
+        if ($debug) {
+            Log::info('[home_debug] TOTAL queries: ' . count(DB::getQueryLog()));
+        }
+
+        return compact('featured_products', 'topRated', 'bestSellProduct', 'latest_products', 'categories', 'brands', 'deal_of_the_day', 'top_sellers', 'home_categories');
     }
 
     public function flash_deals($id)

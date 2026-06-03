@@ -720,7 +720,7 @@
         </section>
     @endif
     {{--Recommended product spotlight--}}
-    @php($rec = (isset($deal_of_the_day) && isset($deal_of_the_day->product)) ? $deal_of_the_day->product : \App\Model\Product::active()->inRandomOrder()->first())
+    @php($rec = (isset($deal_of_the_day) && isset($deal_of_the_day->product)) ? $deal_of_the_day->product : \App\Model\Product::active()->with('brand')->orderByDesc('id')->first())
     @if(isset($rec))
         @php($rec_rating = \App\CPU\ProductManager::get_overall_rating($rec['reviews']))
         <section class="container rtl mb-4">

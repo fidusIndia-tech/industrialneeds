@@ -64,7 +64,9 @@ class BulkImportHelper
         'moq'                   => ['moq', 'minimum_order_quantity', 'minimum order quantity'],
         'refundable'            => ['refundable'],
 
-        'unit_price'            => ['unit_price'],
+        // Selling price. Blank in any of these spellings => the product is imported price-less
+        // ("Price on Request"); it is NOT coerced to 0. First non-empty alias wins.
+        'unit_price'            => ['unit_price', 'price', 'selling_price', 'selling price', 'sale_price', 'sale price', 'mrp'],
         'purchase_price'        => ['purchase_price'],
         'supplier_price'        => ['supplier_price', 'supplier price', 'price [eur]', 'price[eur]', 'price_eur', 'price eur', 'purchase_price_source'],
         'supplier_currency'     => ['supplier_currency'],
@@ -661,7 +663,19 @@ class BulkImportHelper
             return ($v === null || $v === '' || !is_numeric($v)) ? null : (float)$v;
         };
 
+        // ---- price validation (blank is allowed, garbage text is not) ----
+        // A blank price means the product is sold on enquiry (stored as NULL, never 0). Only a
+        // cell that has content AND is not a number is a hard error — so "abc"/"call us" fails,
+        // but an empty cell sails through and becomes a "Price on Request" product.
+        foreach (['unit_price', 'purchase_price', 'supplier_price'] as $priceField) {
+            $raw = $row[$priceField] ?? null;
+            if ($raw !== null && trim((string)$raw) !== '' && !is_numeric(trim((string)$raw))) {
+                return ['error' => "Invalid price in '{$priceField}': '" . trim((string)$raw) . "' is not a number."];
+            }
+        }
+
         // ---- purchase price ----
+        // Left as NULL when the row carries no purchase/supplier price — it is NOT coerced to 0.
         $purchase = $numeric($row['purchase_price'] ?? null);
         if ($purchase === null) {
             $supplier = $numeric($row['supplier_price'] ?? null);
@@ -672,21 +686,24 @@ class BulkImportHelper
                 $flags['calc_purchase'] = true;
             }
         }
-        if ($purchase === null) {
-            $purchase = 0.0;
-        }
 
         // ---- selling (unit) price ----
+        // Computed from purchase + margin only when we actually have a purchase price. With no
+        // purchase price and no explicit unit price, it stays NULL (an enquiry-only product).
         $unitPrice = $numeric($row['unit_price'] ?? null);
-        if ($unitPrice === null) {
+        if ($unitPrice === null && $purchase !== null) {
             $margin = $numeric($row['margin_percent'] ?? null) ?? $numeric($defaults['margin_percent'] ?? null) ?? 0.0;
             $unitPrice = $purchase * (1 + $margin / 100);
             $flags['calc_unit'] = true;
         }
 
         $rounding = $defaults['rounding'] ?? 'whole';
-        $purchase = self::roundPrice($purchase, $rounding);
-        $unitPrice = self::roundPrice($unitPrice, $rounding);
+        if ($purchase !== null) {
+            $purchase = self::roundPrice($purchase, $rounding);
+        }
+        if ($unitPrice !== null) {
+            $unitPrice = self::roundPrice($unitPrice, $rounding);
+        }
 
         // ---- unit / MOQ / stock ----
         $unit = self::firstNonEmpty([$row['unit'] ?? null, $defaults['unit'] ?? null]);
@@ -742,7 +759,8 @@ class BulkImportHelper
             'discount_type'  => $discountType,
             'refundable'     => $refundable,
             'flags'          => $flags,
-            'unit_below_purchase' => ($unitPrice < $purchase),
+            // Only meaningful when both prices are present; an enquiry product (null price) is never "below".
+            'unit_below_purchase' => ($unitPrice !== null && $purchase !== null && $unitPrice < $purchase),
         ];
 
         $allowBelow = !empty($defaults['allow_below']);

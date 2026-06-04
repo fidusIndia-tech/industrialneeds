@@ -53,7 +53,12 @@ $app->singleton(
 */
 
 /*header('Access-Control-Allow-Origin: *');*/
-header('Access-Control-Allow-Methods: *');
-header('Access-Control-Allow-Headers: *');
+// Only emit CORS headers for real HTTP requests. On CLI (artisan/PHPUnit) there is no response
+// header to set, and calling header() after output has started raises a fatal warning that
+// otherwise breaks the test suite.
+if (PHP_SAPI !== 'cli' && !headers_sent()) {
+    header('Access-Control-Allow-Methods: *');
+    header('Access-Control-Allow-Headers: *');
+}
 
 return $app;

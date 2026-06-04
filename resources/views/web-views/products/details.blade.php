@@ -434,6 +434,7 @@
             <!-- RIGHT: Buy / Quote card -->
             <div class="col-lg-3 col-md-12 col-12 ind-col-buy">
                 <div class="ind-buy-card">
+                        @if($product->unit_price > 0)
                             <div class="mb-3">
                                 @if($product->discount > 0)
                                     <strike style="color: #E96A6A;" class="{{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-3'}}">
@@ -586,11 +587,28 @@
                                     </button>
                                 </div>
                             </form>
+                        @else
+                            {{-- Enquiry-only product: no published price, so no cart/checkout. --}}
+                            <div class="mb-3">
+                                <span class="ind-pd-price">{{\App\CPU\translate('Price on Request')}}</span>
+                                <small class="ind-pd-unit d-block mt-1" style="font-weight:400;">{{\App\CPU\translate('Contact us for a quotation and bulk pricing.')}}</small>
+                            </div>
+                        @endif
                             <!-- INQUIRY BUTTON -->
                             <div class="mt-3 mb-4">
                                 <button type="button" class="btn btn-block ind-pd-quote-btn" data-toggle="modal" data-target="#inquiryModal">
                                     <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i> {{\App\CPU\translate('Request a Quote / Inquire')}}
                                 </button>
+                                @if($product->unit_price <= 0 || is_null($product->unit_price))
+                                    @php($wa_number = preg_replace('/\D/', '', \App\CPU\Helpers::get_business_settings('company_phone') ?? ''))
+                                    @if($wa_number !== '')
+                                        @php($wa_text = rawurlencode(\App\CPU\translate('Hello, I would like a quote for').': '.$product->name.($product->product_code ? ' ('.\App\CPU\translate('Part No').': '.$product->product_code.')' : '')))
+                                        <a href="https://wa.me/{{ $wa_number }}?text={{ $wa_text }}" target="_blank" rel="noopener"
+                                           class="btn btn-block mt-2" style="background:#25D366;color:#ffffff;font-weight:700;">
+                                            <i class="fa fa-whatsapp {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>{{\App\CPU\translate('WhatsApp Enquiry')}}
+                                        </a>
+                                    @endif
+                                @endif
                             </div>
                     <div class="ind-buy-expert">
                         <i class="fa fa-headphones {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>
@@ -1205,11 +1223,13 @@
 @push('script')
 
     <script type="text/javascript">
+        @if($product->unit_price > 0)
         cartQuantityInitialize();
         getVariantPrice();
         $('#add-to-cart-form input').on('change', function () {
             getVariantPrice();
         });
+        @endif
 
         function showInstaImage(link) {
             $("#attachment-view").attr("src", link);

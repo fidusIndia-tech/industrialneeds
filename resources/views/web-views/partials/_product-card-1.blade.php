@@ -41,6 +41,7 @@
                             ( {{$product->reviews->count()}} )
                         </label>
                     </div>
+                    @if($product->unit_price > 0)
                     <div>
                         @if($product->discount > 0)
                             <strike
@@ -51,8 +52,11 @@
                     </div>
                     <div class="flash-product-price">
                         {{\App\CPU\Helpers::currency_converter($product->unit_price-\App\CPU\Helpers::get_product_discount($product,$product->unit_price))}}
-                        
+
                     </div>
+                    @else
+                    <div class="flash-product-price">{{\App\CPU\translate('Request Quote')}}</div>
+                    @endif
                     
                 </div>
             </div>

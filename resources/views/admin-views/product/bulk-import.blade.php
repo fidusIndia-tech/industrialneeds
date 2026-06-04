@@ -167,8 +167,8 @@
                                                 @if($product['cat']['l2']['id'] || $product['cat']['l2']['name']) &rarr; {{ $product['cat']['l2']['id'] ? ('#'.$product['cat']['l2']['id']) : $product['cat']['l2']['name'] }} @endif
                                                 @if($product['cat']['l3']['id'] || $product['cat']['l3']['name']) &rarr; {{ $product['cat']['l3']['id'] ? ('#'.$product['cat']['l3']['id']) : $product['cat']['l3']['name'] }} @endif
                                             </td>
-                                            <td>{{ number_format($product['purchase_price'], 2) }}</td>
-                                            <td>{{ number_format($product['unit_price'], 2) }}</td>
+                                            <td>{{ is_null($product['purchase_price']) ? \App\CPU\translate('On request') : number_format($product['purchase_price'], 2) }}</td>
+                                            <td>{{ is_null($product['unit_price']) ? \App\CPU\translate('On request') : number_format($product['unit_price'], 2) }}</td>
                                             <td>{{ $product['current_stock'] }}</td>
                                             <td>
                                                 @php($note = $product['image_note'] ?? 'none')

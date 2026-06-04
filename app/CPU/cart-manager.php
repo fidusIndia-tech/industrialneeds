@@ -181,7 +181,16 @@ class CartManager
 
         $user = Helpers::get_customer($request);
         $product = Product::find($request->id);
-        
+
+        // Enquiry-only product (no published price): it cannot be bought directly — the customer
+        // must request a quote. Guards against a direct cart request when the UI button is hidden.
+        if ($product && ($product->unit_price === null || $product->unit_price <= 0)) {
+            return [
+                'status' => 0,
+                'message' => translate('This product is available on request. Please submit an enquiry for pricing.')
+            ];
+        }
+
         //check the color enabled or disabled for the product
         if ($request->has('color')) {
             $str = Color::where('code', $request['color'])->first()->name;

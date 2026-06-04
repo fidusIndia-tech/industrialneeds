@@ -176,8 +176,10 @@ class BulkImportProcessor
                         'unit'           => $product['unit'],
                         'min_qty'        => $product['min_qty'],
                         'refundable'     => $product['refundable'],
-                        'unit_price'     => BackEndHelper::currency_to_usd($product['unit_price']),
-                        'purchase_price' => BackEndHelper::currency_to_usd($product['purchase_price']),
+                        // Keep NULL prices NULL — currency_to_usd(null) would floor to 0, which would
+                        // turn an enquiry-only product into a misleading ₹0 product.
+                        'unit_price'     => $product['unit_price'] === null ? null : BackEndHelper::currency_to_usd($product['unit_price']),
+                        'purchase_price' => $product['purchase_price'] === null ? null : BackEndHelper::currency_to_usd($product['purchase_price']),
                         'tax'            => $product['tax'],
                         'discount'       => $product['discount'],
                         'discount_type'  => $product['discount_type'],

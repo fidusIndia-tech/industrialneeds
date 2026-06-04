@@ -184,6 +184,7 @@
 
                     </div>
                 </div>
+                @if($product->unit_price > 0)
                 <div class="mb-3">
                     <span
                         class="h3 font-weight-normal text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}">
@@ -330,6 +331,17 @@
                         </button>
                     </div>
                 </form>
+                @else
+                    {{-- Enquiry-only product: no published price, so no cart/checkout. --}}
+                    <div class="mb-3">
+                        <span class="h3 font-weight-normal text-accent {{Session::get('direction') === "rtl" ? 'ml-1' : 'mr-1'}}">
+                            {{\App\CPU\translate('Price on Request')}}
+                        </span>
+                    </div>
+                    <a href="{{route('product',$product->slug)}}" class="btn btn-primary btn-block">
+                        <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>{{\App\CPU\translate('Request Quote')}}
+                    </a>
+                @endif
                 <!-- Product panels-->
             </div>
         </div>
@@ -337,11 +349,13 @@
 </div>
 
 <script type="text/javascript">
+    @if($product->unit_price > 0)
     cartQuantityInitialize();
     getVariantPrice();
     $('#add-to-cart-form input').on('change', function () {
         getVariantPrice();
     });
+    @endif
 
     $(document).ready(function() {
         $('.click-img').click(function(){

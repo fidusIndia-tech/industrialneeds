@@ -263,37 +263,68 @@
         <div class="row ind-top-row" style="direction: ltr">
             <!-- LEFT: Product image gallery -->
             <div class="col-lg-4 col-md-5 col-12 ind-col-image">
+                        @php
+                            // Build the list of displayable image URLs for the detail gallery.
+                            // Imported products often only have the thumbnail saved (product/thumbnail/<file>)
+                            // while the gallery copy (product/<file>) may be missing on the live server,
+                            // which is why the listing image worked but the detail image was broken.
+                            // Resolve each gallery file to a path that actually exists on disk, and always
+                            // guarantee the proven-working listing thumbnail is available as a fallback.
+                            $thumbDir    = \App\CPU\ProductManager::product_image_path('thumbnail');
+                            $productDir  = \App\CPU\ProductManager::product_image_path('product');
+                            $placeholder = asset('public/assets/front-end/img/image-place-holder.png');
+
+                            $detailImages = [];
+                            $gallery = $product->images ? json_decode($product->images, true) : [];
+                            if (is_array($gallery)) {
+                                foreach ($gallery as $photo) {
+                                    if (!$photo || $photo === 'def.png') { continue; }
+                                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists('product/'.$photo)) {
+                                        $detailImages[] = $productDir.'/'.$photo;            // real gallery image
+                                    } elseif (\Illuminate\Support\Facades\Storage::disk('public')->exists('product/thumbnail/'.$photo)) {
+                                        $detailImages[] = $thumbDir.'/'.$photo;              // gallery copy missing -> reuse the listing thumbnail
+                                    }
+                                }
+                            }
+                            // No gallery resolved: fall back to the same thumbnail the listing/search card uses.
+                            if (empty($detailImages) && !empty($product->thumbnail) && $product->thumbnail !== 'def.png') {
+                                $detailImages[] = $thumbDir.'/'.$product->thumbnail;
+                            }
+                            // Genuinely no image anywhere: show the placeholder.
+                            if (empty($detailImages)) {
+                                $detailImages[] = $placeholder;
+                            }
+                            $detailImages = array_values(array_unique($detailImages));
+                        @endphp
                         <div class="ind-gallery-card">
                         <div class="cz-product-gallery">
                             <div class="cz-preview">
-                                @if($product->images!=null)
-                                    @foreach (json_decode($product->images) as $key => $photo)
-                                        <div
-                                            class="cz-preview-item d-flex align-items-center justify-content-center {{$key==0?'active':''}}"
-                                            id="image{{$key}}">
-                                            <img class="cz-image-zoom img-responsive" style="width:100%;max-height:323px;"
-                                                onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
-                                                src="{{asset("storage/app/public/product/$photo")}}"
-                                                data-zoom="{{asset("storage/app/public/product/$photo")}}"
-                                                alt="Product image" width="">
-                                            <div class="cz-image-zoom-pane"></div>
-                                        </div>
-                                    @endforeach
-                                @endif
+                                @foreach ($detailImages as $key => $photoUrl)
+                                    <div
+                                        class="cz-preview-item d-flex align-items-center justify-content-center {{$key==0?'active':''}}"
+                                        id="image{{$key}}">
+                                        <img class="cz-image-zoom img-responsive" style="width:100%;max-height:323px;"
+                                            onerror="this.src='{{$placeholder}}'"
+                                            src="{{$photoUrl}}"
+                                            data-zoom="{{$photoUrl}}"
+                                            alt="Product image" width="">
+                                        <div class="cz-image-zoom-pane"></div>
+                                    </div>
+                                @endforeach
                             </div>
                             <div class="cz">
                                 <div>
                                     <div class="row">
                                         <div class="table-responsive" data-simplebar style="max-height: 515px; padding: 1px;">
                                             <div class="d-flex" style="padding-left: 3px;">
-                                                @if($product->images!=null)
-                                                    @foreach (json_decode($product->images) as $key => $photo)
+                                                @if(count($detailImages) > 1)
+                                                    @foreach ($detailImages as $key => $photoUrl)
                                                         <div class="cz-thumblist">
                                                             <a class="cz-thumblist-item  {{$key==0?'active':''}} d-flex align-items-center justify-content-center "
                                                             href="#image{{$key}}">
                                                                 <img
-                                                                    onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
-                                                                    src="{{asset("storage/app/public/product/$photo")}}"
+                                                                    onerror="this.src='{{$placeholder}}'"
+                                                                    src="{{$photoUrl}}"
                                                                     alt="Product thumb">
                                                             </a>
                                                         </div>

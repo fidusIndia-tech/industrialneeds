@@ -1,3 +1,15 @@
+@php
+    // Live products = same status logic as the public product listing (Product::active()).
+    $homepage_live_products_count = \Illuminate\Support\Facades\Cache::remember('homepage_live_products_count', now()->addMinutes(10), function () {
+        return \App\Model\Product::active()->count();
+    });
+    $homepage_total_brands_count = \Illuminate\Support\Facades\Cache::remember('homepage_total_brands_count', now()->addMinutes(10), function () {
+        return \App\Model\Brand::count();
+    });
+    $homepage_total_categories_count = \Illuminate\Support\Facades\Cache::remember('homepage_total_categories_count', now()->addMinutes(10), function () {
+        return \App\Model\Category::count();
+    });
+@endphp
 <style>
     .card-body.search-result-box {
         overflow: scroll;
@@ -109,6 +121,135 @@
         padding: 2px 0;
         text-align: center;
         color:white;
+    }
+
+    /* ---- Live products/brands badge — glassmorphism (inside the blue navbar row) ---- */
+    .navbar-upload-count {
+        display: flex;
+        align-items: center;
+    }
+    .nuc-pill {
+        position: relative;
+        isolation: isolate;
+        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+        padding: 6px 14px;
+        border-radius: 999px;
+        white-space: nowrap;
+        color: #f3f7fb;
+        font-size: 12.5px;
+        font-weight: 500;
+        letter-spacing: .2px;
+        /* slight transparent navy glass */
+        background: linear-gradient(135deg, rgba(11, 79, 138, .38) 0%, rgba(8, 42, 69, .55) 100%);
+        -webkit-backdrop-filter: blur(8px) saturate(140%);
+        backdrop-filter: blur(8px) saturate(140%);
+        /* soft gold border + subtle navy/gold glow */
+        border: 1px solid rgba(255, 196, 0, .45);
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, .04) inset,
+            0 2px 10px rgba(8, 42, 69, .45),
+            0 0 14px rgba(255, 196, 0, .18);
+        /* gentle blooming pulse: soft scale + expanding glow, every 4s */
+        transform-origin: center;
+        will-change: transform;
+        animation: nuc-bloom 4s ease-in-out infinite;
+    }
+    .nuc-pill .nuc-text {
+        position: relative;
+        z-index: 2;
+    }
+    .nuc-pill .nuc-num {
+        color: var(--ind-accent, #FFC400);
+        font-weight: 700;
+        text-shadow: 0 0 6px rgba(255, 196, 0, .35);
+    }
+    .nuc-pill .nuc-dot {
+        color: var(--ind-accent, #FFC400);
+        padding: 0 3px;
+    }
+    /* Shimmer sweep — diagonal light passing across the glass */
+    .nuc-pill::before {
+        content: "";
+        position: absolute;
+        top: -60%;
+        left: -75%;
+        width: 50%;
+        height: 220%;
+        z-index: 1;
+        transform: skewX(-20deg);
+        background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, .18) 45%,
+            rgba(255, 230, 150, .35) 50%,
+            rgba(255, 255, 255, .18) 55%,
+            rgba(255, 255, 255, 0) 100%);
+        animation: nuc-shimmer 6s ease-in-out infinite;
+    }
+    /* Sparkle / bloom dots — tiny gold stars that twinkle */
+    .nuc-pill::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background-image:
+            radial-gradient(circle, rgba(255, 240, 190, .95) 0%, rgba(255, 196, 0, 0) 60%),
+            radial-gradient(circle, rgba(255, 255, 255, .9) 0%, rgba(255, 255, 255, 0) 60%),
+            radial-gradient(circle, rgba(255, 214, 90, .85) 0%, rgba(255, 196, 0, 0) 60%);
+        background-repeat: no-repeat;
+        background-size: 3px 3px, 2px 2px, 2.5px 2.5px;
+        background-position: 18% 35%, 62% 68%, 84% 28%;
+        animation: nuc-sparkle 4.5s ease-in-out infinite;
+    }
+    @keyframes nuc-bloom {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, .04) inset,
+                0 2px 10px rgba(8, 42, 69, .45),
+                0 0 14px rgba(255, 196, 0, .18);
+        }
+        50% {
+            transform: scale(1.035);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, .06) inset,
+                0 4px 16px rgba(8, 42, 69, .5),
+                0 0 26px rgba(255, 196, 0, .42);
+        }
+    }
+    @keyframes nuc-shimmer {
+        0%   { left: -75%; }
+        55%  { left: 130%; }
+        100% { left: 130%; }
+    }
+    @keyframes nuc-sparkle {
+        0%, 100% { opacity: .25; }
+        40%      { opacity: 1; }
+        70%      { opacity: .45; }
+    }
+    @media (max-width: 767px) {
+        .navbar-upload-count {
+            margin-left: 0 !important;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            width: 100%;
+            justify-content: center;
+        }
+        .nuc-pill {
+            font-size: 12px;
+            padding: 5px 12px;
+            /* more opaque navy so light text stays readable over the light mobile menu */
+            background: linear-gradient(135deg, rgba(11, 79, 138, .92) 0%, rgba(8, 42, 69, .96) 100%);
+        }
+    }
+    /* Accessibility: kill all motion for reduced-motion users (badge stays fully readable) */
+    @media (prefers-reduced-motion: reduce) {
+        .nuc-pill { animation: none; transform: none; }
+        .nuc-pill::before { animation: none; left: -75%; }
+        .nuc-pill::after  { animation: none; opacity: .6; }
     }
 
     /* ---- Brands dropdown: search box + live counts (scoped to #brandsDropdownMenu) ---- */
@@ -740,6 +881,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         @endif
                       */ ?>
                     </ul>
+                    {{-- Far-right live products/brands badge (glassmorphism, navy/yellow theme) --}}
+                    <div class="navbar-upload-count ml-auto">
+                        <span class="nuc-pill">
+                            <span class="nuc-text">
+                                <span class="nuc-num">{{ number_format($homepage_live_products_count) }}</span> {{ \App\CPU\translate('Live Products') }}
+                                <span class="nuc-dot">&bull;</span>
+                                <span class="nuc-num">{{ number_format($homepage_total_brands_count) }}</span> {{ \App\CPU\translate('Brands') }}
+                                <span class="nuc-dot">&bull;</span>
+                                <span class="nuc-num">{{ number_format($homepage_total_categories_count) }}</span> {{ \App\CPU\translate('Categories') }}
+                            </span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

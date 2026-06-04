@@ -2165,4 +2165,11 @@
   'Showing all' => 'Showing All',
   'Showing' => 'Showing',
   'No brands found' => 'No Brands Found',
+  'products uploaded across' => 'Products Uploaded Across',
+  'Products Uploaded' => 'Products Uploaded',
+  'Live Products' => 'Live Products',
+  'Products Live' => 'Products Live',
+  'View our catalogue and chat on WhatsApp' => 'View Our Catalogue And Chat On WhatsApp',
+  'Categories' => 'Categories',
+  'Discounted' => 'Discounted',
 );

@@ -24,6 +24,14 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
+        // ---- Deploy-proof image storage (self-healing symlink) ----
+        // Keeps storage/app/public pointing at a persistent dir OUTSIDE the deploy tree, so a
+        // deploy that wipes/re-clones public_html can never delete uploaded images. No-op unless
+        // STORAGE_PERSISTENT_LINK=true (set on live only). Cheap when already healthy.
+        $schedule->command('storage:persist')
+            ->everyMinute()
+            ->withoutOverlapping(5);
+
         // ---- Background product-image pipeline (hands-off) ----
         // 1) Once a day, enqueue up to ~a day's DigiKey quota worth of products that still need an
         //    image. Only 'placeholder' products are picked (in-flight 'queued' jobs are not re-sent);

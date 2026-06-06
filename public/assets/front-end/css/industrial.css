@@ -282,15 +282,24 @@ html[dir="rtl"] .currency-dropdown-menu {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: rgba(255, 255, 255, .9);
     font-size: 13px;
     font-weight: 600;
     text-transform: capitalize;
 }
 
+/* Force the toggle label + flag-name span white on the navy topbar. !important
+   matches the topbar's own colour convention (.topbar-text) and guarantees the
+   language name is legible at rest, not only on hover. */
+.lang-dropdown-toggle,
+.lang-dropdown-toggle .lang-name {
+    color: rgba(255, 255, 255, .92) !important;
+}
+
 .lang-dropdown-toggle:hover,
-.lang-dropdown.open .lang-dropdown-toggle {
-    color: var(--ind-accent);
+.lang-dropdown-toggle:hover .lang-name,
+.lang-dropdown.open .lang-dropdown-toggle,
+.lang-dropdown.open .lang-dropdown-toggle .lang-name {
+    color: var(--ind-accent) !important;
 }
 
 .lang-dropdown-toggle i {

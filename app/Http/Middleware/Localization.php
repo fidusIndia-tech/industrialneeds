@@ -16,8 +16,11 @@ class Localization
      */
     public function handle($request, Closure $next)
     {
-        if (session()->has('locale')) {
-            App::setLocale(session()->get('locale'));
+        // The rest of the app stores the active locale under the 'local' session key
+        // (see SharedController@lang and Helpers::default_lang()). Honour that key so
+        // App::setLocale() actually reflects the visitor's chosen language.
+        if (session()->has('local')) {
+            App::setLocale(session()->get('local'));
         }
         return $next($request);
     }

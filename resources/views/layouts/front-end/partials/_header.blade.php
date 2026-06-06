@@ -375,34 +375,35 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 @endif
 
                 @php( $local = \App\CPU\Helpers::default_lang())
-                <div
-                    class="topbar-text dropdown disable-autohide  text-capitalize">
-                    <a class="topbar-link dropdown-toggle" href="#" data-toggle="dropdown">
+                {{-- Self-contained language selector (vanilla-JS toggle) so its menu never
+                     hides behind the sticky header / cart — same pattern as the currency
+                     selector above. Uses the existing lang route — no backend changes. --}}
+                <div class="lang-dropdown" id="langDropdown">
+                    <button type="button" class="lang-dropdown-toggle" onclick="toggleLangDropdown(event)">
                         @foreach(json_decode($language['value'],true) as $data)
                             @if($data['code']==$local)
-                                <img class="{{Session::get('direction') === 'rtl' ? 'ml-2' : 'mr-2'}}" width="20"
+                                <img class="lang-flag" width="20"
                                      src="{{asset('public/assets/front-end')}}/img/flags/{{$data['code']}}.png"
-                                     alt="Eng">
-                                {{$data['name']}}
+                                     alt="{{$data['name']}}">
+                                <span class="lang-name">{{$data['name']}}</span>
                             @endif
                         @endforeach
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-{{Session::get('direction') === 'rtl' ? 'right' : 'left'}}"
-                        style="text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
+                        <i class="czi-arrow-down"></i>
+                    </button>
+                    <div class="lang-dropdown-menu" role="menu">
                         @foreach(json_decode($language['value'],true) as $key =>$data)
                             @if($data['status']==1)
-                                <li>
-                                    <a class="dropdown-item pb-1" href="{{route('lang',[$data['code']])}}">
-                                        <img class="{{Session::get('direction') === 'rtl' ? 'ml-2' : 'mr-2'}}"
-                                             width="20"
-                                             src="{{asset('public/assets/front-end')}}/img/flags/{{$data['code']}}.png"
-                                             alt="{{$data['name']}}"/>
-                                        <span style="text-transform: capitalize">{{$data['name']}}</span>
-                                    </a>
-                                </li>
+                                <a role="menuitem"
+                                   class="lang-dropdown-item {{ $data['code']==$local ? 'is-selected' : '' }}"
+                                   href="{{route('lang',[$data['code']])}}">
+                                    <img class="lang-flag" width="20"
+                                         src="{{asset('public/assets/front-end')}}/img/flags/{{$data['code']}}.png"
+                                         alt="{{$data['name']}}"/>
+                                    <span class="lang-name">{{$data['name']}}</span>
+                                </a>
                             @endif
                         @endforeach
-                    </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -918,6 +919,25 @@ document.addEventListener('click', function (e) {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         var el = document.getElementById('currencyDropdown');
+        if (el) { el.classList.remove('open'); }
+    }
+});
+
+/* Language dropdown — vanilla JS toggle (independent of Bootstrap), same pattern
+   as the currency dropdown so its menu renders above the sticky header / cart. */
+function toggleLangDropdown(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var el = document.getElementById('langDropdown');
+    if (el) { el.classList.toggle('open'); }
+}
+document.addEventListener('click', function (e) {
+    var el = document.getElementById('langDropdown');
+    if (el && !el.contains(e.target)) { el.classList.remove('open'); }
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        var el = document.getElementById('langDropdown');
         if (el) { el.classList.remove('open'); }
     }
 });

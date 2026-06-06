@@ -683,8 +683,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <!-- End Facebook Pixel Code -->
     @endif
 
-    {{-- Industrial B2B UI redesign overrides — must load LAST to win over inline theme styles --}}
-    <link rel="stylesheet" media="screen" href="{{asset('public/assets/front-end')}}/css/industrial.css">
+    {{-- Industrial B2B UI redesign overrides — must load LAST to win over inline theme styles.
+         ?v=<filemtime> busts the browser cache automatically whenever the file changes, so CSS
+         edits (e.g. the language dropdown) take effect without a manual hard refresh. --}}
+    <link rel="stylesheet" media="screen" href="{{asset('public/assets/front-end')}}/css/industrial.css?v={{ @filemtime(base_path('public/assets/front-end/css/industrial.css')) }}">
 </head>
 <!-- Body-->
 <body class="toolbar-enabled">

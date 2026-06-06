@@ -343,7 +343,6 @@ html[dir="rtl"] .lang-dropdown-menu {
 }
 
 .lang-dropdown-item {
-    color: var(--ind-text);
     background: #FFFFFF;
     padding: 9px 14px;
     display: flex;
@@ -356,16 +355,36 @@ html[dir="rtl"] .lang-dropdown-menu {
     font-size: 13.5px;
     white-space: nowrap;
     text-transform: capitalize;
+    text-decoration: none;
 }
 
+/* The dropdown links sit inside .topbar, whose `.topbar a { color:#fff !important }`
+   rule (specificity 0,0,1,1 + !important) was forcing these white-on-white, hiding
+   every language name. Override with a higher-specificity descendant selector
+   (.lang-dropdown-menu .lang-dropdown-item = 0,0,2,0) + !important, and cover the
+   inner .lang-name span, so the names render dark and readable on the white menu. */
+.lang-dropdown-menu .lang-dropdown-item,
+.lang-dropdown-menu .lang-dropdown-item .lang-name {
+    color: #1f2937 !important;
+}
+
+/* Hover: subtle light-grey background, text stays dark/navy (beats .topbar a:hover). */
 .lang-dropdown-item:hover {
     background: var(--ind-bg);
-    color: var(--ind-navy);
+}
+.lang-dropdown-menu .lang-dropdown-item:hover,
+.lang-dropdown-menu .lang-dropdown-item:hover .lang-name {
+    color: var(--ind-navy) !important;
 }
 
+/* Selected language: highlighted row, bold navy text, fully legible. */
 .lang-dropdown-item.is-selected {
     background: var(--ind-bg);
     font-weight: 700;
+}
+.lang-dropdown-menu .lang-dropdown-item.is-selected,
+.lang-dropdown-menu .lang-dropdown-item.is-selected .lang-name {
+    color: var(--ind-navy) !important;
 }
 
 html[dir="rtl"] .lang-dropdown-item {

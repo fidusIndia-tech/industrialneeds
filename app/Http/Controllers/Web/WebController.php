@@ -104,9 +104,8 @@ class WebController extends Controller
         $t = microtime(true); $q = count(DB::getQueryLog());
         $home_categories = Category::where('home_status', true)->priority()->take(4)->get();
         $home_categories->map(function ($data) {
-            $id = '"' . $data['id'] . '"';
             $data['products'] = Product::with(['brand'])->active()
-                ->where('category_ids', 'like', "%{$id}%")
+                ->inCategory($data['id'])
                 ->orderByDesc('id')
                 ->take(6)->get();
         });
@@ -533,9 +532,7 @@ class WebController extends Controller
                     return $query->where(['added_by' => 'seller'])
                         ->where('user_id', $id);
                 })
-                ->whereJsonContains('category_ids', [
-                    ['id' => strval($request->category_id)],
-                ])->paginate(12);
+                ->inCategory($request->category_id)->paginate(12);
         }
 
         if ($id == 0) {
@@ -563,9 +560,7 @@ class WebController extends Controller
     {
         $products = Product::active()->with('shop')->where(['added_by' => 'seller'])
             ->where('user_id', $id)
-            ->whereJsonContains('category_ids', [
-                ['id' => strval($request->category_id)],
-            ])
+            ->inCategory($request->category_id)
             ->paginate(12);
         $shop = Shop::where('seller_id', $id)->first();
         if ($request['sort_by'] == null) {
@@ -589,7 +584,7 @@ class WebController extends Controller
         $wishlists = Wishlist::where('product_id', $product->id)->get();
         $countOrder = count($order_details);
         $countWishlist = count($wishlists);
-        $relatedProducts = Product::with(['reviews'])->where('category_ids', $product->category_ids)->where('id', '!=', $product->id)->limit(12)->get();
+        $relatedProducts = Product::with(['reviews'])->active()->related($product->id)->limit(12)->get();
         return response()->json([
             'success' => 1,
             'view' => view('web-views.partials._quick-view-data', compact('product', 'countWishlist', 'countOrder', 'relatedProducts'))->render(),
@@ -602,7 +597,7 @@ class WebController extends Controller
         if ($product != null) {
             $countOrder = OrderDetail::where('product_id', $product->id)->count();
             $countWishlist = Wishlist::where('product_id', $product->id)->count();
-            $relatedProducts = Product::with(['reviews'])->active()->where('category_ids', $product->category_ids)->where('id', '!=', $product->id)->limit(12)->get();
+            $relatedProducts = Product::with(['reviews'])->active()->related($product->id)->limit(12)->get();
             $deal_of_the_day = DealOfTheDay::where('product_id', $product->id)->where('status', 1)->first();
             return view('web-views.products.details', compact('product', 'countWishlist', 'countOrder', 'relatedProducts', 'deal_of_the_day'));
         }
@@ -618,16 +613,9 @@ class WebController extends Controller
         $porduct_data = Product::active()->with(['reviews']);
 
         if ($request['data_from'] == 'category') {
-            $products = $porduct_data->get();
-            $product_ids = [];
-            foreach ($products as $product) {
-                foreach (json_decode($product['category_ids'], true) as $category) {
-                    if ($category['id'] == $request['id']) {
-                        array_push($product_ids, $product['id']);
-                    }
-                }
-            }
-            $query = $porduct_data->whereIn('id', $product_ids);
+            // Indexed pivot lookup — replaces loading the entire active catalog into
+            // PHP and json_decode-ing every row (was O(catalog) per request).
+            $query = $porduct_data->inCategory($request['id']);
         }
 
         if ($request['data_from'] == 'brand') {
@@ -686,16 +674,17 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'search') {
+            $engineIds = ProductManager::engine_search_ids($request['name']);
+        }
+        if (($request['data_from'] == 'search') && $engineIds !== null) {
+            // Meilisearch path (relevance-ordered, typo-tolerant).
+            $query = empty($engineIds)
+                ? $porduct_data->whereRaw('1 = 0')
+                : $porduct_data->whereIn('id', $engineIds)->orderByRaw('FIELD(id, ' . implode(',', $engineIds) . ')');
+        } elseif ($request['data_from'] == 'search') {
+            // DB fallback: FULLTEXT/LIKE via the shared helper, then a translation-name fallback.
             $key = explode(' ', $request['name']);
-            $hasProductCode = \Schema::hasColumn('products', 'product_code');
-            $product_ids = Product::where(function ($q) use ($key, $hasProductCode) {
-                foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%");
-                    if ($hasProductCode) {
-                        $q->orWhere('product_code', 'like', "%{$value}%");
-                    }
-                }
-            })->pluck('id');
+            $product_ids = ProductManager::search_filter(Product::query(), $request['name'])->pluck('id');
 
             if($product_ids->count()==0)
             {
@@ -779,16 +768,9 @@ class WebController extends Controller
         $porduct_data = Product::active()->with(['reviews']);
 
         if ($request['data_from'] == 'category') {
-            $products = $porduct_data->get();
-            $product_ids = [];
-            foreach ($products as $product) {
-                foreach (json_decode($product['category_ids'], true) as $category) {
-                    if ($category['id'] == $request['id']) {
-                        array_push($product_ids, $product['id']);
-                    }
-                }
-            }
-            $query = $porduct_data->whereIn('id', $product_ids);
+            // Indexed pivot lookup — replaces loading the entire active catalog into
+            // PHP and json_decode-ing every row (was O(catalog) per request).
+            $query = $porduct_data->inCategory($request['id']);
         }
 
         if ($request['data_from'] == 'brand') {

@@ -559,7 +559,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </form>
                     </div>
 
-                    @php($categories=\App\Model\Category::with(['childes.childes'])->where('position', 0)->priority()->paginate(11))
+                    @php($categories=\App\CPU\CategoryManager::nav_tree(11))
                     <ul class="navbar-nav mega-nav pr-2 pl-2 {{Session::get('direction') === 'rtl' ? 'ml-2' : 'mr-2'}} d-none d-xl-block ">
                         <!--web-->
                         <li class="nav-item {{!request()->is('/')?'dropdown':''}}">

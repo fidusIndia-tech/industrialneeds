@@ -57,7 +57,7 @@ Route::group(['namespace' => 'Seller', 'prefix' => 'seller', 'as' => 'seller.'],
             Route::post('update/{id}', 'ProductController@update')->name('update');
             Route::post('sku-combination', 'ProductController@sku_combination')->name('sku-combination');
             Route::get('get-categories', 'ProductController@get_categories')->name('get-categories');
-            Route::get('barcode', 'ProductController@get_categories')->name('get-categories');
+            Route::get('barcode', 'ProductController@get_categories');
             Route::get('barcode/{id}', 'ProductController@barcode')->name('barcode');
 
             Route::delete('delete/{id}', 'ProductController@delete')->name('delete');

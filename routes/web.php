@@ -245,7 +245,7 @@ Route::group(['prefix'=>'bkash'], function () {
 
     // Refund Routes for bKash
     Route::get('refund', 'BkashRefundController@index')->name('bkash-refund');
-    Route::post('refund', 'BkashRefundController@refund')->name('bkash-refund');
+    Route::post('refund', 'BkashRefundController@refund');
 });
 
 //fawry

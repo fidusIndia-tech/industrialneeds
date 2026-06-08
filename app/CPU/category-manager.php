@@ -21,9 +21,9 @@ class CategoryManager
 
     public static function products($category_id)
     {
-        $id = '"'.$category_id.'"';
+        // Indexed product_categories pivot lookup (replaces an unindexable
+        // category_ids LIKE '%"id"%' full table scan).
         return Product::active()
-            ->where('category_ids', 'like', "%{$id}%")->get();
-            /*->whereJsonContains('category_ids', ["id" => (string)$data['id']])*/
+            ->inCategory($category_id)->get();
     }
 }

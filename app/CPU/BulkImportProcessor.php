@@ -199,6 +199,7 @@ class BulkImportProcessor
                             $attributes['images']    = json_encode($gallery);
                         }
                         DB::table('products')->where('id', $product['_existing_id'])->update($attributes);
+                        self::syncCategoryPivot($product['_existing_id'], $resolved['category_ids']);
                         $d['updated']++;
                     } else {
                         // Image-pipeline state for new products: a placeholder is "queued" for the
@@ -223,7 +224,8 @@ class BulkImportProcessor
                         $attributes['added_by']        = 'admin';
                         $attributes['user_id']         = $job->admin_id;
                         $attributes['created_at']      = now();
-                        DB::table('products')->insert($attributes);
+                        $newProductId = DB::table('products')->insertGetId($attributes);
+                        self::syncCategoryPivot($newProductId, $resolved['category_ids']);
                         $d['created']++;
                     }
 
@@ -280,6 +282,37 @@ class BulkImportProcessor
 
         Log::info("Bulk import job {$job->id}: chunk done, {$job->processed_rows}/{$job->total_rows} "
             . "(created {$job->created_count}, updated {$job->updated_count}, failed {$job->failed_count}).");
+    }
+
+    /**
+     * Keep the product_categories pivot in sync for a raw-inserted/updated product.
+     * The bulk path uses DB::table (not Eloquent), so the Product model's saved event
+     * never fires — we mirror its logic here from the already-decoded category array.
+     */
+    private static function syncCategoryPivot($productId, array $categoryIds): void
+    {
+        DB::table('product_categories')->where('product_id', $productId)->delete();
+
+        $rows = [];
+        $seen = [];
+        foreach ($categoryIds as $c) {
+            if (!isset($c['id'])) {
+                continue;
+            }
+            $categoryId = (int) $c['id'];
+            if ($categoryId <= 0 || isset($seen[$categoryId])) {
+                continue;
+            }
+            $seen[$categoryId] = true;
+            $rows[] = [
+                'product_id' => $productId,
+                'category_id' => $categoryId,
+                'position' => isset($c['position']) ? (int) $c['position'] : 0,
+            ];
+        }
+        if ($rows) {
+            DB::table('product_categories')->insert($rows);
+        }
     }
 
     // ---------------------------------------------------------------------

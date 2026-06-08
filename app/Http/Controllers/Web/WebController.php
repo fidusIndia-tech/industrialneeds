@@ -674,16 +674,9 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'search') {
+            // Relevance-ranked FULLTEXT search (LIKE fallback) via the shared helper.
             $key = explode(' ', $request['name']);
-            $hasProductCode = \Schema::hasColumn('products', 'product_code');
-            $product_ids = Product::where(function ($q) use ($key, $hasProductCode) {
-                foreach ($key as $value) {
-                    $q->orWhere('name', 'like', "%{$value}%");
-                    if ($hasProductCode) {
-                        $q->orWhere('product_code', 'like', "%{$value}%");
-                    }
-                }
-            })->pluck('id');
+            $product_ids = ProductManager::search_filter(Product::query(), $request['name'])->pluck('id');
 
             if($product_ids->count()==0)
             {

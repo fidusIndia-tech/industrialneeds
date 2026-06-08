@@ -17,6 +17,74 @@ class ProductManager
         return Product::active()->with(['rating'])->where('id', $id)->first();
     }
 
+    /**
+     * Apply a text search over name + product_code to a query builder.
+     *
+     * When the FULLTEXT index exists, uses it (boolean mode, prefix-wildcarded,
+     * all terms required — better precision than the old space-split orWhere) and
+     * orders by relevance. Otherwise (or for short part codes below the FULLTEXT
+     * minimum token size) falls back to the original LIKE behaviour, so search
+     * keeps working on MySQL builds where the FULLTEXT index can't be created.
+     */
+    public static function search_filter($builder, $name)
+    {
+        $terms = preg_split('/\s+/', trim((string) $name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (empty($terms)) {
+            return $builder;
+        }
+
+        $allLongEnough = true;
+        foreach ($terms as $t) {
+            if (mb_strlen($t) < 3) { // innodb_ft_min_token_size default
+                $allLongEnough = false;
+                break;
+            }
+        }
+
+        if ($allLongEnough && self::fulltextAvailable()) {
+            $booleanParts = [];
+            foreach ($terms as $t) {
+                $clean = trim(preg_replace('/[+\-*"()~<>@]/', ' ', $t));
+                if ($clean !== '') {
+                    $booleanParts[] = '+' . $clean . '*';
+                }
+            }
+            $boolean = implode(' ', $booleanParts);
+            if ($boolean !== '') {
+                return $builder
+                    ->whereRaw('MATCH(name, product_code) AGAINST(? IN BOOLEAN MODE)', [$boolean])
+                    ->orderByRaw('MATCH(name, product_code) AGAINST(? IN BOOLEAN MODE) DESC', [$boolean]);
+            }
+        }
+
+        $hasProductCode = \Schema::hasColumn('products', 'product_code');
+        return $builder->where(function ($q) use ($terms, $hasProductCode) {
+            foreach ($terms as $value) {
+                $q->orWhere('name', 'like', "%{$value}%");
+                if ($hasProductCode) {
+                    $q->orWhere('product_code', 'like', "%{$value}%");
+                }
+            }
+        });
+    }
+
+    /**
+     * Whether the products FULLTEXT index exists. Cached 1h so we don't run
+     * SHOW INDEX on every search. MATCH against a missing index is a fatal SQL
+     * error (it fires at execution, outside any builder-level try/catch), so this
+     * gate must be reliable.
+     */
+    private static function fulltextAvailable(): bool
+    {
+        return \Illuminate\Support\Facades\Cache::remember('products_fulltext_index_exists', 3600, function () {
+            try {
+                return !empty(DB::select("SHOW INDEX FROM products WHERE Key_name = 'products_name_code_fulltext'"));
+            } catch (\Throwable $e) {
+                return false;
+            }
+        });
+    }
+
     public static function get_latest_products($limit = 10, $offset = 1)
     {
         $paginator = Product::active()->with(['rating'])->latest()->paginate($limit, ['*'], 'page', $offset);
@@ -108,18 +176,10 @@ class ProductManager
 
     public static function search_products($name, $limit = 10, $offset = 1)
     {
-        /*$key = explode(' ', $name);*/
-        $key = [base64_decode($name)];
+        $name = base64_decode($name);
 
-        $hasProductCode = \Schema::hasColumn('products', 'product_code');
-        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key, $hasProductCode) {
-            foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%");
-                if ($hasProductCode) {
-                    $q->orWhere('product_code', 'like', "%{$value}%");
-                }
-            }
-        })->paginate($limit, ['*'], 'page', $offset);
+        $paginator = self::search_filter(Product::active()->with(['rating']), $name)
+            ->paginate($limit, ['*'], 'page', $offset);
 
         return [
             'total_size' => $paginator->total(),
@@ -130,18 +190,8 @@ class ProductManager
     }
     public static function search_products_web($name, $limit = 10, $offset = 1)
     {
-        /*$key = explode(' ', $name);*/
-        $key = explode(' ', $name);
-
-        $hasProductCode = \Schema::hasColumn('products', 'product_code');
-        $paginator = Product::active()->with(['rating'])->where(function ($q) use ($key, $hasProductCode) {
-            foreach ($key as $value) {
-                $q->orWhere('name', 'like', "%{$value}%");
-                if ($hasProductCode) {
-                    $q->orWhere('product_code', 'like', "%{$value}%");
-                }
-            }
-        })->paginate($limit, ['*'], 'page', $offset);
+        $paginator = self::search_filter(Product::active()->with(['rating']), $name)
+            ->paginate($limit, ['*'], 'page', $offset);
 
         return [
             'total_size' => $paginator->total(),

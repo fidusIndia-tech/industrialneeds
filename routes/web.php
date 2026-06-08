@@ -20,11 +20,12 @@ use Illuminate\Support\Facades\Mail;
 //for maintenance mode
 Route::get('maintenance-mode', 'Web\WebController@maintenance_mode')->name('maintenance-mode');
 
-// Public XML sitemap temporarily DISABLED — it was causing high PHP/DB load on
-// the live site. /sitemap.xml now returns a fast 410 via the root .htaccess
-// (no Laravel bootstrap). To re-enable: restore Web\SitemapController + the
-// resources/views/sitemap.blade.php view (see git history) and the .htaccess rule.
-// Route::get('sitemap.xml', 'Web\SitemapController@index')->name('sitemap.xml');
+// Public XML sitemap is now STATIC, not a route. The old dynamic controller
+// generated the whole catalog on every request and caused high PHP/DB load, so
+// it was removed. /sitemap.xml is a flat file at the project root, served
+// directly by Apache (no Laravel bootstrap). Regenerate with:
+//   php artisan sitemap:generate   (see App\Console\Commands\GenerateSitemap)
+// Schedule it daily / run it after large catalog imports.
 
 
 Route::group(['namespace' => 'Web','middleware'=>['maintenance_mode']], function () {

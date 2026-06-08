@@ -27,15 +27,15 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
     Route::group(['namespace' => 'Auth', 'prefix' => 'auth', 'as' => 'auth.'], function () {
         Route::get('/code/captcha/{tmp}', 'LoginController@captcha')->name('default-captcha');
         Route::get('login', 'LoginController@login')->name('login');
-        Route::post('login', 'LoginController@submit');
+        Route::post('login', 'LoginController@submit')->middleware('throttle:5,1');
         Route::get('logout', 'LoginController@logout')->name('logout');
 
         Route::get('sign-up', 'RegisterController@register')->name('sign-up');
-        Route::post('sign-up', 'RegisterController@submit');
+        Route::post('sign-up', 'RegisterController@submit')->middleware('throttle:10,1');
 
         Route::get('check/{id}', 'RegisterController@check')->name('check');
 
-        Route::post('verify', 'RegisterController@verify')->name('verify');
+        Route::post('verify', 'RegisterController@verify')->middleware('throttle:10,1')->name('verify');
 
         Route::get('update-phone/{id}', 'SocialAuthController@editPhone')->name('update-phone');
         Route::post('update-phone/{id}', 'SocialAuthController@updatePhone');
@@ -44,11 +44,11 @@ Route::group(['namespace' => 'Customer', 'prefix' => 'customer', 'as' => 'custom
         Route::get('login/{service}/callback', 'SocialAuthController@handleProviderCallback')->name('service-callback');
 
         Route::get('recover-password', 'ForgotPasswordController@reset_password')->name('recover-password');
-        Route::post('forgot-password', 'ForgotPasswordController@reset_password_request')->name('forgot-password');
+        Route::post('forgot-password', 'ForgotPasswordController@reset_password_request')->middleware('throttle:6,1')->name('forgot-password');
         Route::get('otp-verification', 'ForgotPasswordController@otp_verification')->name('otp-verification');
-        Route::post('otp-verification', 'ForgotPasswordController@otp_verification_submit');
+        Route::post('otp-verification', 'ForgotPasswordController@otp_verification_submit')->middleware('throttle:6,1');
         Route::get('reset-password', 'ForgotPasswordController@reset_password_index')->name('reset-password');
-        Route::post('reset-password', 'ForgotPasswordController@reset_password_submit');
+        Route::post('reset-password', 'ForgotPasswordController@reset_password_submit')->middleware('throttle:6,1');
     });
 
     Route::group(['prefix' => 'payment-mobile'], function () {

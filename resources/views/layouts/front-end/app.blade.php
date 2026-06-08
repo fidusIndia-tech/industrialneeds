@@ -13,6 +13,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     <title>
         @yield('title')
     </title>
+    {{-- SEO: per-page meta description (pages set @section('meta_description')); generic fallback otherwise --}}
+    @hasSection('meta_description')
+        <meta name="description" content="@yield('meta_description')">
+    @else
+        <meta name="description" content="{{ $web_config['name']->value ?? config('app.name') }} — industrial, MRO & B2B supplies: tools, equipment, electrical and electronic components. Browse genuine parts by brand and category.">
+    @endif
+    {{-- SEO: canonical URL. Pages may override via @section('canonical'); default drops query strings to avoid duplicate-content dilution from sort/currency params --}}
+    <link rel="canonical" href="@yield('canonical', url()->current())">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="apple-touch-icon" sizes="180x180"
           href="{{asset('storage/app/public/company')}}/{{$web_config['fav_icon']->value}}">

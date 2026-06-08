@@ -12,7 +12,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
     Route::group(['namespace' => 'Auth', 'prefix' => 'auth', 'as' => 'auth.'], function () {
         Route::get('/code/captcha/{tmp}', 'LoginController@captcha')->name('default-captcha');
         Route::get('login', 'LoginController@login')->name('login');
-        Route::post('login', 'LoginController@submit')->middleware('actch');
+        Route::post('login', 'LoginController@submit')->middleware(['actch', 'throttle:5,1']);
         Route::get('logout', 'LoginController@logout')->name('logout');
     });
 

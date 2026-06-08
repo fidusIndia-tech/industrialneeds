@@ -48,6 +48,15 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping(10)
             ->runInBackground();
+
+        // ---- Static SEO sitemap ----
+        // Regenerate /sitemap.xml (+ child sitemaps) once a day so Google can discover
+        // product/category/brand URLs. Static files are served by Apache without booting
+        // Laravel, avoiding the per-request load that got the old dynamic sitemap disabled.
+        $schedule->command('sitemap:generate')
+            ->dailyAt('02:00')
+            ->withoutOverlapping(30)
+            ->runInBackground();
     }
 
     /**

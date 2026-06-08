@@ -28,6 +28,9 @@ yarn-error.log
 /sitemap.xml
 /sitemap-pages.xml
 /sitemap-products-*.xml
+
+# Internal audit doc — keep out of the repo (documents live security weaknesses)
+/ENTERPRISE_AUDIT_REPORT.md
 # Ignore internal WordPress installations/themes
 /chromo
 /chromogenic

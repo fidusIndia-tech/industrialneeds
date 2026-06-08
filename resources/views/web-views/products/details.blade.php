@@ -2,9 +2,99 @@
 
 @section('title',$product['name'])
 
+@php
+    // ---- SEO data: real meta description, canonical and JSON-LD structured data ----
+    $companyName = $web_config['name']->value ?? config('app.name');
+    $brandName = optional($product->brand)->name;
+    $productUrl = route('product', [$product->slug]);
+
+    // SEO keywords: name + MPN + brand. Built in PHP (not inline Blade @if) because
+    // adjacent directives like @endif@if don't compile (Blade's \B@ word-boundary rule).
+    $keywordParts = [$product->name];
+    if (!empty($product->product_code)) { $keywordParts[] = $product->product_code; }
+    if ($brandName) { $keywordParts[] = $brandName; }
+    $metaKeywords = implode(', ', $keywordParts);
+
+    // Templated meta description (<=160 chars) — never the slug.
+    if (!empty($product->meta_description)) {
+        $metaDescription = \Illuminate\Support\Str::limit(trim(strip_tags($product->meta_description)), 158);
+    } else {
+        $descParts = [$product->name];
+        if (!empty($product->product_code)) { $descParts[] = 'MPN ' . $product->product_code; }
+        if ($brandName) { $descParts[] = 'by ' . $brandName; }
+        $metaDescription = \Illuminate\Support\Str::limit(trim(implode(' ', $descParts)) . ' — buy online at ' . $companyName . '.', 158);
+    }
+
+    // Offer + rating figures.
+    $ldImage = $product->meta_image
+        ? asset('storage/app/public/product/meta') . '/' . $product->meta_image
+        : asset('storage/app/public/product/thumbnail') . '/' . $product->thumbnail;
+    $ldPrice = round((float) $product->unit_price, 2);
+    try { $ldCurrency = \App\CPU\Helpers::currency_code(); } catch (\Throwable $e) { $ldCurrency = 'INR'; }
+    if (empty($ldCurrency)) { $ldCurrency = 'INR'; }
+    $ldAvailability = ($product->current_stock > 0) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+    $ldRating = \App\CPU\ProductManager::get_overall_rating($product->reviews); // [avg, count]
+    $ldRatingAvg = isset($ldRating[0]) ? round((float) $ldRating[0], 1) : 0;
+    $ldRatingCount = isset($ldRating[1]) ? (int) $ldRating[1] : 0;
+
+    $productLd = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Product',
+        'name' => $product->name,
+        'description' => $metaDescription,
+        'image' => $ldImage,
+        'url' => $productUrl,
+    ];
+    if (!empty($product->product_code)) {
+        $productLd['sku'] = $product->product_code;
+        $productLd['mpn'] = $product->product_code;
+    }
+    if ($brandName) {
+        $productLd['brand'] = ['@type' => 'Brand', 'name' => $brandName];
+    }
+    if ($ldPrice > 0) {
+        $productLd['offers'] = [
+            '@type' => 'Offer',
+            'priceCurrency' => $ldCurrency,
+            'price' => $ldPrice,
+            'availability' => $ldAvailability,
+            'url' => $productUrl,
+        ];
+    }
+    if ($ldRatingCount > 0 && $ldRatingAvg > 0) {
+        $productLd['aggregateRating'] = [
+            '@type' => 'AggregateRating',
+            'ratingValue' => $ldRatingAvg,
+            'reviewCount' => $ldRatingCount,
+        ];
+    }
+
+    // Breadcrumb: Home › [top-level category] › product (category_ids is JSON, so guard it).
+    $crumbs = [['name' => \App\CPU\translate('Home'), 'item' => route('home')]];
+    foreach ((json_decode($product->category_ids, true) ?: []) as $c) {
+        if (isset($c['position'], $c['id']) && $c['position'] == 1) {
+            $catModel = \App\Model\Category::select('id', 'name')->find($c['id']);
+            if ($catModel) {
+                $crumbs[] = ['name' => $catModel->name, 'item' => url('/products?id=' . $catModel->id . '&data_from=category&page=1')];
+            }
+            break;
+        }
+    }
+    $crumbs[] = ['name' => $product->name, 'item' => $productUrl];
+    $breadcrumbItems = [];
+    foreach ($crumbs as $i => $crumb) {
+        $breadcrumbItems[] = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $crumb['name'], 'item' => $crumb['item']];
+    }
+    $breadcrumbLd = ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => $breadcrumbItems];
+@endphp
+@section('meta_description', $metaDescription)
+@section('canonical', $productUrl)
+
 @push('css_or_js')
-    <meta name="description" content="{{$product->slug}}">
-    <meta name="keywords" content="@foreach(explode(' ',$product['name']) as $keyword) {{$keyword.' , '}} @endforeach">
+    {{-- SEO: structured data for rich results (price, availability, brand, MPN, rating + breadcrumb). json_encode keeps slashes escaped so product text can't break out of the script tag. --}}
+    <script type="application/ld+json">{!! json_encode($productLd, JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode($breadcrumbLd, JSON_UNESCAPED_UNICODE) !!}</script>
+    <meta name="keywords" content="{{ $metaKeywords }}">
     @if($product->added_by=='seller')
         <meta name="author" content="{{ $product->seller->shop?$product->seller->shop->name:$product->seller->f_name}}">
     @elseif($product->added_by=='admin')

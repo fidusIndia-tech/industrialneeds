@@ -19,15 +19,15 @@ Route::group(['namespace' => 'Seller', 'prefix' => 'seller', 'as' => 'seller.'],
     Route::group(['namespace' => 'Auth', 'prefix' => 'auth', 'as' => 'auth.'], function () {
         Route::get('/code/captcha/{tmp}', 'LoginController@captcha')->name('default-captcha');
         Route::get('login', 'LoginController@login')->name('login');
-        Route::post('login', 'LoginController@submit');
+        Route::post('login', 'LoginController@submit')->middleware('throttle:5,1');
         Route::get('logout', 'LoginController@logout')->name('logout');
 
         Route::get('forgot-password', 'ForgotPasswordController@forgot_password')->name('forgot-password');
-        Route::post('forgot-password', 'ForgotPasswordController@reset_password_request');
+        Route::post('forgot-password', 'ForgotPasswordController@reset_password_request')->middleware('throttle:6,1');
         Route::get('otp-verification', 'ForgotPasswordController@otp_verification')->name('otp-verification');
-        Route::post('otp-verification', 'ForgotPasswordController@otp_verification_submit');
+        Route::post('otp-verification', 'ForgotPasswordController@otp_verification_submit')->middleware('throttle:6,1');
         Route::get('reset-password', 'ForgotPasswordController@reset_password_index')->name('reset-password');
-        Route::post('reset-password', 'ForgotPasswordController@reset_password_submit');
+        Route::post('reset-password', 'ForgotPasswordController@reset_password_submit')->middleware('throttle:6,1');
     });
 
     /*authenticated*/

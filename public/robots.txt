@@ -12,5 +12,6 @@ Disallow: /wishlists
 Disallow: /user-account
 Disallow: /searched-products
 Disallow: /search-shop
-Disallow: /sitemap.xml
 Crawl-delay: 20
+
+Sitemap: https://industrialneeds.co/sitemap.xml

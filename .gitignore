@@ -18,6 +18,16 @@ yarn-error.log
 /cache
 /installation
 /static
+
+# Database dumps must never be committed or served from the web root
+*.sql
+*.sql.gz
+/industrialneeds_db.sql
+
+# Generated sitemap artifacts (produced by `php artisan sitemap:generate`)
+/sitemap.xml
+/sitemap-pages.xml
+/sitemap-products-*.xml
 # Ignore internal WordPress installations/themes
 /chromo
 /chromogenic

@@ -144,7 +144,19 @@ class ProductController extends BaseController
         $p->added_by = "admin";
         $p->name = $request->name[array_search('en', $request->lang)];
         $p->code = $request->code;
-        $p->slug = Str::slug($request->name[array_search('en', $request->lang)], '-') . '-' . Str::random(6);
+        // Clean, keyword-friendly slug (no random suffix — better for SEO). A numeric
+        // suffix is only appended when a real collision exists, keeping URLs unique.
+        $baseSlug = Str::slug($request->name[array_search('en', $request->lang)], '-');
+        if ($baseSlug === '') {
+            $baseSlug = 'product';
+        }
+        $slug = $baseSlug;
+        $suffix = 1;
+        while (Product::where('slug', $slug)->exists()) {
+            $slug = $baseSlug . '-' . $suffix;
+            $suffix++;
+        }
+        $p->slug = $slug;
 
         $category = [];
 

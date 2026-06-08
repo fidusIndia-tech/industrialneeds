@@ -70,7 +70,7 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::get('update/{id}', 'DealController@edit')->name('update');
             Route::get('edit/{id}', 'DealController@feature_edit')->name('edit');
 
-            Route::post('update/{id}', 'DealController@update')->name('update');
+            Route::post('update/{id}', 'DealController@update');
             Route::post('status-update', 'DealController@status_update')->name('status-update');
             Route::post('feature-status', 'DealController@feature_status')->name('feature-status');
 

@@ -674,7 +674,15 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'search') {
-            // Relevance-ranked FULLTEXT search (LIKE fallback) via the shared helper.
+            $engineIds = ProductManager::engine_search_ids($request['name']);
+        }
+        if (($request['data_from'] == 'search') && $engineIds !== null) {
+            // Meilisearch path (relevance-ordered, typo-tolerant).
+            $query = empty($engineIds)
+                ? $porduct_data->whereRaw('1 = 0')
+                : $porduct_data->whereIn('id', $engineIds)->orderByRaw('FIELD(id, ' . implode(',', $engineIds) . ')');
+        } elseif ($request['data_from'] == 'search') {
+            // DB fallback: FULLTEXT/LIKE via the shared helper, then a translation-name fallback.
             $key = explode(' ', $request['name']);
             $product_ids = ProductManager::search_filter(Product::query(), $request['name'])->pluck('id');
 

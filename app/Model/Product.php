@@ -7,9 +7,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
+use Laravel\Scout\Searchable;
 
 class Product extends Model
 {
+    use Searchable;
+
     protected $casts = [
         'user_id' => 'integer',
         'brand_id' => 'integer',
@@ -34,6 +37,52 @@ class Product extends Model
         'temp_shipping_cost' => 'float',
         'is_shipping_cost_updated' => 'integer'
     ];
+
+    // ---------------------------------------------------------------------
+    // Laravel Scout / Meilisearch
+    // ---------------------------------------------------------------------
+
+    /** Meilisearch index name (must match config scout.meilisearch.index-settings key). */
+    public function searchableAs()
+    {
+        return 'products_index';
+    }
+
+    /**
+     * The document indexed in Meilisearch. Uses raw column values (not the
+     * translation accessor) so the canonical English name/code is indexed.
+     * category ids come from the existing category_ids JSON (no extra query),
+     * and brand/category/price are filterable for faceted B2B search.
+     */
+    public function toSearchableArray()
+    {
+        $categoryIds = collect(json_decode($this->getRawOriginal('category_ids'), true) ?: [])
+            ->pluck('id')->filter()->map(fn ($id) => (int) $id)->values()->all();
+
+        return [
+            'id' => (int) $this->id,
+            'name' => (string) $this->getRawOriginal('name'),
+            'product_code' => (string) ($this->getRawOriginal('product_code') ?? ''),
+            'brand' => optional($this->brand)->name,
+            'brand_id' => $this->brand_id !== null ? (int) $this->brand_id : null,
+            'categories' => $categoryIds,
+            'unit_price' => $this->unit_price !== null ? (float) $this->unit_price : null,
+            'status' => (int) $this->status,
+            'published' => (int) ($this->getRawOriginal('published') ?? 0),
+        ];
+    }
+
+    /** Only index live products (read paths still apply the full active() scope). */
+    public function shouldBeSearchable()
+    {
+        return (int) $this->status === 1;
+    }
+
+    /** Lean eager-loading for `scout:import` — skip the translate scope, load brand once. */
+    protected function makeAllSearchableUsing($query)
+    {
+        return $query->withoutGlobalScope('translate')->with('brand');
+    }
 
     public function translations()
     {

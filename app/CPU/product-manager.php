@@ -69,6 +69,44 @@ class ProductManager
     }
 
     /**
+     * Apply the best available search to a Product query builder: Meilisearch when
+     * it's the active driver and reachable (relevance-ordered), otherwise the DB
+     * FULLTEXT/LIKE helper. Keeps all existing scopes (active(), eager loads, etc.).
+     */
+    public static function apply_search($builder, $name)
+    {
+        $ids = self::engine_search_ids($name);
+        if ($ids === null) {
+            return self::search_filter($builder, $name); // engine off/unavailable
+        }
+        if (empty($ids)) {
+            return $builder->whereRaw('1 = 0'); // engine ran, no matches
+        }
+        // Preserve Meilisearch relevance order. $ids are ints, safe to inline.
+        $ordered = implode(',', $ids);
+        return $builder->whereIn('id', $ids)->orderByRaw("FIELD(id, {$ordered})");
+    }
+
+    /**
+     * Ranked product ids from the search engine, or NULL when the engine isn't the
+     * active driver or a query fails (so callers fall back to DB search). Never
+     * throws — a Meilisearch outage degrades to DB search, it doesn't break search.
+     */
+    public static function engine_search_ids($name, $limit = 1000)
+    {
+        if (config('scout.driver') !== 'meilisearch') {
+            return null;
+        }
+        try {
+            return Product::search((string) $name)->take($limit)->keys()
+                ->map(fn ($id) => (int) $id)->all();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Meilisearch search failed; using DB fallback. ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Whether the products FULLTEXT index exists. Cached 1h so we don't run
      * SHOW INDEX on every search. MATCH against a missing index is a fatal SQL
      * error (it fires at execution, outside any builder-level try/catch), so this
@@ -178,7 +216,7 @@ class ProductManager
     {
         $name = base64_decode($name);
 
-        $paginator = self::search_filter(Product::active()->with(['rating']), $name)
+        $paginator = self::apply_search(Product::active()->with(['rating']), $name)
             ->paginate($limit, ['*'], 'page', $offset);
 
         return [
@@ -190,7 +228,7 @@ class ProductManager
     }
     public static function search_products_web($name, $limit = 10, $offset = 1)
     {
-        $paginator = self::search_filter(Product::active()->with(['rating']), $name)
+        $paginator = self::apply_search(Product::active()->with(['rating']), $name)
             ->paginate($limit, ['*'], 'page', $offset);
 
         return [

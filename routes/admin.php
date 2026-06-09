@@ -554,6 +554,12 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::get('list', 'InquiryController@index')->name('list');
             Route::get('view/{id}', 'InquiryController@view')->name('view');
         });
+        // Product Quote Requests (RFQ)
+        Route::group(['prefix' => 'quotes', 'as' => 'quotes.', 'middleware'=>['module:support_section']], function () {
+            Route::get('list', 'QuoteController@index')->name('list');
+            Route::get('show/{id}', 'QuoteController@show')->name('show');
+            Route::post('respond/{id}', 'QuoteController@respond')->name('respond');
+        });
 
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
             Route::get('add', 'DeliveryManController@index')->name('add');

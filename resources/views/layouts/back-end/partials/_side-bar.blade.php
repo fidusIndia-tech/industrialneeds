@@ -743,6 +743,17 @@
                                 </li>
                                       <!-- End Product Inquiries -->
 
+                                <!-- Quote Requests (RFQ) Menu Item -->
+                                <li class="navbar-vertical-aside-has-menu {{Request::is('admin/quotes*')?'active':''}}">
+                                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.quotes.list')}}">
+                                        <i class="tio-receipt-outlined nav-icon"></i>
+                                        <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                            {{\App\CPU\translate('Quote Requests')}}
+                                        </span>
+                                    </a>
+                                </li>
+                                      <!-- End Quote Requests -->
+
                                 <!-- Customer Feedback Menu Item -->
                                 <li class="navbar-vertical-aside-has-menu {{Request::is('admin/feedbacklist')?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.feedbacklist')}}">

@@ -21,7 +21,7 @@
         </tr>
         <tr>
             <td style="padding: 8px; border: 1px solid #ddd;"><strong>Unit Price</strong></td>
-            <td style="padding: 8px; border: 1px solid #ddd;">{{ $quote->quoted_unit_price }}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{{ \App\CPU\Helpers::currency_converter($quote->quoted_unit_price) }}</td>
         </tr>
         @if($quote->quote_valid_until)
         <tr>

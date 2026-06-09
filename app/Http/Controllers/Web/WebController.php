@@ -385,6 +385,17 @@ class WebController extends Controller
             array_push($order_ids, $order_id);
         }
 
+        // RFQ: link an accepted quote to the order it just became (closes the lifecycle).
+        if (session()->has('accepted_quote_id') && !empty($order_ids)) {
+            $quote = \App\Model\Quote::find(session('accepted_quote_id'));
+            if ($quote && $quote->status === 'accepted') {
+                $quote->status = 'ordered';
+                $quote->order_id = $order_ids[0];
+                $quote->save();
+            }
+            session()->forget('accepted_quote_id');
+        }
+
         CartManager::cart_clean();
 
 

@@ -343,6 +343,105 @@ class CartManager
         ];
     }
 
+    /**
+     * RFQ MVP (PR 3): add an accepted quote to the cart at the LOCKED quoted price.
+     * Enquiry-only products have no published price, so add_to_cart refuses them — this
+     * bypasses that, snapshotting the admin's quoted unit price/qty onto the cart row
+     * (the cart already snapshots price per line, so checkout totals use it directly).
+     * Mirrors add_to_cart's offline/DB branching so the normal guest->checkout merge works.
+     */
+    public static function add_quoted_to_cart($quote, $request = null)
+    {
+        $user = Helpers::get_customer($request);
+        $product = Product::find($quote->product_id);
+        if (!$product) {
+            return ['status' => 0, 'message' => translate('Product not found.')];
+        }
+
+        $price = (float) $quote->quoted_unit_price;
+        $qty = max(1, (int) ($quote->quoted_qty ?? $quote->requested_qty));
+
+        // No variant handling: enquiry-only industrial products use a plain SKU.
+        $str = '';
+
+        if ($user == 'offline') {
+            if (!session()->has('offline_cart')) {
+                session()->put('offline_cart', collect());
+            }
+            $existing = session('offline_cart')->where('product_id', $quote->product_id)->where('variant', $str)->first();
+            $cart = isset($existing) ? collect() : collect();
+            $cart['id'] = time();
+        } else {
+            $cart = Cart::where(['product_id' => $quote->product_id, 'customer_id' => $user->id, 'variant' => $str])->first();
+            if (!isset($cart)) {
+                $cart = new Cart();
+            }
+        }
+
+        $cart['color'] = null;
+        $cart['product_id'] = $product->id;
+        $cart['choices'] = json_encode([]);
+        $cart['variations'] = json_encode([]);
+        $cart['variant'] = $str;
+
+        // Seller grouping (mirrors add_to_cart).
+        if ($user == 'offline') {
+            $cart_check = optional(session('offline_cart'))
+                ->where('seller_id', ($product->added_by == 'admin') ? 1 : $product->user_id)
+                ->where('seller_is', $product->added_by)->first();
+        } else {
+            $cart_check = Cart::where([
+                'customer_id' => $user->id,
+                'seller_id' => ($product->added_by == 'admin') ? 1 : $product->user_id,
+                'seller_is' => $product->added_by])->first();
+        }
+        $cart['cart_group_id'] = isset($cart_check)
+            ? $cart_check['cart_group_id']
+            : (($user == 'offline' ? 'offline' : $user->id) . '-' . Str::random(5) . '-' . time());
+
+        $cart['customer_id'] = $user == 'offline' ? 0 : $user->id;
+        $cart['quantity'] = $qty;
+        $cart['price'] = $price;                                   // locked quoted price
+        $cart['tax'] = Helpers::tax_calculation($price, $product['tax'], 'percent');
+        $cart['slug'] = $product->slug;
+        $cart['name'] = $product->name;
+        $cart['discount'] = 0;                                     // quoted price is final
+        $cart['thumbnail'] = $product->thumbnail;
+        $cart['seller_id'] = ($product->added_by == 'admin') ? 1 : $product->user_id;
+        $cart['seller_is'] = $product->added_by;
+        $cart['shipping_cost'] = CartManager::get_shipping_cost_for_product_category_wise($product, $qty);
+        if ($product->added_by == 'seller') {
+            $cart['shop_info'] = optional(Shop::where(['seller_id' => $product->user_id])->first())->name;
+        } else {
+            $cart['shop_info'] = Helpers::get_business_settings('company_name');
+        }
+
+        $shippingMethod = Helpers::get_business_settings('shipping_method');
+        if ($shippingMethod == 'inhouse_shipping') {
+            $admin_shipping = ShippingType::where('seller_id', 0)->first();
+            $shipping_type = isset($admin_shipping) ? $admin_shipping->shipping_type : 'order_wise';
+        } else {
+            if ($product->added_by == 'admin') {
+                $admin_shipping = ShippingType::where('seller_id', 0)->first();
+                $shipping_type = isset($admin_shipping) ? $admin_shipping->shipping_type : 'order_wise';
+            } else {
+                $seller_shipping = ShippingType::where('seller_id', $product->user_id)->first();
+                $shipping_type = isset($seller_shipping) ? $seller_shipping->shipping_type : 'order_wise';
+            }
+        }
+        $cart['shipping_type'] = $shipping_type;
+
+        if ($user == 'offline') {
+            $offline_cart = session('offline_cart');
+            $offline_cart->push($cart);
+            session()->put('offline_cart', $offline_cart);
+        } else {
+            $cart->save();
+        }
+
+        return ['status' => 1, 'message' => translate('Quote added to cart at the quoted price.')];
+    }
+
     public static function update_cart_qty($request)
     {
         $user = Helpers::get_customer($request);

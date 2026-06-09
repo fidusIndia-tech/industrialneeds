@@ -50,7 +50,8 @@ class QuoteController extends Controller
             return back();
         }
 
-        $quote->quoted_unit_price = $request->quoted_unit_price;
+        // Admin enters the price in the display currency; store in USD base like unit_price.
+        $quote->quoted_unit_price = \App\CPU\BackEndHelper::currency_to_usd($request->quoted_unit_price);
         $quote->quoted_qty = $request->quoted_qty ?: $quote->requested_qty;
         $quote->quote_valid_until = $request->quote_valid_until;
         $quote->admin_note = $request->admin_note;

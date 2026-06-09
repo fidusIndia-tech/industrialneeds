@@ -46,7 +46,7 @@ class QuoteController extends Controller
 
         // Only respond to live requests (allow re-quoting one already quoted).
         if (!in_array($quote->status, ['requested', 'quoted'])) {
-            Toastr::warning(translate('This quote can no longer be responded to.'));
+            Toastr::warning(\App\CPU\translate('This quote can no longer be responded to.'));
             return back();
         }
 
@@ -67,7 +67,7 @@ class QuoteController extends Controller
             }
         }
 
-        Toastr::success(translate('Quote sent to the customer.'));
+        Toastr::success(\App\CPU\translate('Quote sent to the customer.'));
         return redirect()->route('admin.quotes.show', $quote->id);
     }
 }

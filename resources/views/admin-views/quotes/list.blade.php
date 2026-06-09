@@ -8,7 +8,7 @@
     <div class="page-header">
         <div class="row align-items-center">
             <div class="col-sm mb-2 mb-sm-0">
-                <h1 class="page-header-title">{{ translate('Quote Requests') }}</h1>
+                <h1 class="page-header-title">{{ \App\CPU\translate('Quote Requests') }}</h1>
             </div>
         </div>
     </div>
@@ -18,12 +18,12 @@
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-                    <h5 class="mb-0">{{ translate('Quotes') }}
+                    <h5 class="mb-0">{{ \App\CPU\translate('Quotes') }}
                         <span class="badge badge-soft-dark ml-2">{{ $quotes->total() }}</span>
                     </h5>
                     <form method="GET" action="{{ route('admin.quotes.list') }}" class="d-flex">
                         <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
-                            <option value="">{{ translate('All statuses') }}</option>
+                            <option value="">{{ \App\CPU\translate('All statuses') }}</option>
                             @foreach(['requested','quoted','accepted','rejected','expired','ordered'] as $s)
                                 <option value="{{ $s }}" {{ $status === $s ? 'selected' : '' }}>{{ ucfirst($s) }}</option>
                             @endforeach
@@ -35,13 +35,13 @@
                         <table class="table table-borderless table-thead-bordered table-nowrap table-align-middle card-table">
                             <thead class="thead-light">
                                 <tr>
-                                    <th>{{ translate('Ref') }}</th>
-                                    <th>{{ translate('Product') }}</th>
-                                    <th>{{ translate('Customer') }}</th>
-                                    <th>{{ translate('Qty') }}</th>
-                                    <th>{{ translate('Status') }}</th>
-                                    <th>{{ translate('Date') }}</th>
-                                    <th>{{ translate('Action') }}</th>
+                                    <th>{{ \App\CPU\translate('Ref') }}</th>
+                                    <th>{{ \App\CPU\translate('Product') }}</th>
+                                    <th>{{ \App\CPU\translate('Customer') }}</th>
+                                    <th>{{ \App\CPU\translate('Qty') }}</th>
+                                    <th>{{ \App\CPU\translate('Status') }}</th>
+                                    <th>{{ \App\CPU\translate('Date') }}</th>
+                                    <th>{{ \App\CPU\translate('Action') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -58,12 +58,12 @@
                                     <td>{{ $quote->created_at->format('d M Y') }}</td>
                                     <td>
                                         <a class="btn btn-primary btn-sm" href="{{ route('admin.quotes.show', $quote->id) }}">
-                                            <i class="tio-visible"></i> {{ translate('View') }}
+                                            <i class="tio-visible"></i> {{ \App\CPU\translate('View') }}
                                         </a>
                                     </td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="7" class="text-center py-4 text-muted">{{ translate('No quote requests yet.') }}</td></tr>
+                                <tr><td colspan="7" class="text-center py-4 text-muted">{{ \App\CPU\translate('No quote requests yet.') }}</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

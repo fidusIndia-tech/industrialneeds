@@ -36,14 +36,14 @@ class QuoteController extends Controller
         $this->expireIfNeeded($quote);
 
         if ($quote->status !== 'quoted') {
-            Toastr::warning(translate('This quote can no longer be accepted.'));
+            Toastr::warning(\App\CPU\translate('This quote can no longer be accepted.'));
             return redirect()->route('quote.show', $token);
         }
 
         // Add the quoted line to the cart at the locked price.
         $result = CartManager::add_quoted_to_cart($quote, $request);
         if (($result['status'] ?? 0) != 1) {
-            Toastr::error($result['message'] ?? translate('Could not add the quote to your cart.'));
+            Toastr::error($result['message'] ?? \App\CPU\translate('Could not add the quote to your cart.'));
             return redirect()->route('quote.show', $token);
         }
 
@@ -56,7 +56,7 @@ class QuoteController extends Controller
         // Let checkout_complete link the resulting order back to this quote.
         session(['accepted_quote_id' => $quote->id]);
 
-        Toastr::success(translate('Quote accepted — please complete your order.'));
+        Toastr::success(\App\CPU\translate('Quote accepted — please complete your order.'));
         return redirect()->route('shop-cart');
     }
 
@@ -71,7 +71,7 @@ class QuoteController extends Controller
         if (in_array($quote->status, ['quoted', 'requested'])) {
             $quote->status = 'rejected';
             $quote->save();
-            Toastr::success(translate('You have declined this quote.'));
+            Toastr::success(\App\CPU\translate('You have declined this quote.'));
         }
 
         return redirect()->route('quote.show', $token);

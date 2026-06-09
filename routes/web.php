@@ -143,6 +143,10 @@ Route::group(['namespace' => 'Web','middleware'=>['maintenance_mode']], function
     Route::post('product-inquiry', 'WebController@inquiry_store')->name('product.inquiry.submit');
     // Product Quote Requests (RFQ)
     Route::post('product-quote', 'WebController@quote_store')->name('product.quote.submit');
+    // Customer-facing quote (tokenised — guest accessible from the quote email)
+    Route::get('quote/{token}', 'QuoteController@show')->name('quote.show');
+    Route::post('quote/{token}/accept', 'QuoteController@accept')->name('quote.accept');
+    Route::post('quote/{token}/reject', 'QuoteController@reject')->name('quote.reject');
 
     //sellerShop
     Route::get('shopView/{id}', 'WebController@seller_shop')->name('shopView');

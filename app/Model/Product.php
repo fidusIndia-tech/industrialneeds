@@ -264,10 +264,13 @@ class Product extends Model
             if ($product->wasRecentlyCreated || $product->wasChanged('category_ids')) {
                 $product->syncCategoryPivot();
             }
+            // Phase 2.5: bust the cached detail page so edits surface immediately.
+            \App\CPU\ProductManager::forget_product_detail_cache($product->slug);
         });
 
         static::deleted(function (Product $product) {
             DB::table('product_categories')->where('product_id', $product->id)->delete();
+            \App\CPU\ProductManager::forget_product_detail_cache($product->slug);
         });
 
         static::addGlobalScope('translate', function (Builder $builder) {

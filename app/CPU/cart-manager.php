@@ -191,6 +191,20 @@ class CartManager
             ];
         }
 
+        // MOQ enforcement: the ordered quantity must meet the product's minimum order quantity.
+        // minimum_order_qty is shown on the product page (and set as the qty input's min), but the
+        // HTML min attribute is trivially bypassed via the API or a direct POST, so enforce it here —
+        // the single add-to-cart path shared by web and API.
+        if ($product) {
+            $min_order_qty = max(1, (int) ($product->minimum_order_qty ?? 1));
+            if ((int) $request['quantity'] < $min_order_qty) {
+                return [
+                    'status' => 0,
+                    'message' => translate('The minimum order quantity for this product is') . ' ' . $min_order_qty . '.'
+                ];
+            }
+        }
+
         //check the color enabled or disabled for the product
         if ($request->has('color')) {
             $str = Color::where('code', $request['color'])->first()->name;
@@ -351,6 +365,18 @@ class CartManager
         $cart = Cart::where(['id' => $request->key, 'customer_id' => $user->id])->first();
 
         $product = Product::find($cart['product_id']);
+
+        // MOQ enforcement on cart edits: block lowering the quantity below the product's
+        // minimum order quantity (the add path enforces it too, but the cart lets you change qty).
+        $min_order_qty = max(1, (int) ($product->minimum_order_qty ?? 1));
+        if ((int) $request->quantity < $min_order_qty) {
+            return [
+                'status' => 0,
+                'qty' => $cart['quantity'],
+                'message' => translate('The minimum order quantity for this product is') . ' ' . $min_order_qty . '.'
+            ];
+        }
+
         $count = count(json_decode($product->variation));
         if ($count) {
             for ($i = 0; $i < $count; $i++) {

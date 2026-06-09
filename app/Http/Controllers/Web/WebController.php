@@ -593,17 +593,38 @@ class WebController extends Controller
 
     public function product($slug)
     {
-        $product = Product::active()->with(['reviews'])->where('slug', $slug)->first();
-        if ($product != null) {
-            $countOrder = OrderDetail::where('product_id', $product->id)->count();
-            $countWishlist = Wishlist::where('product_id', $product->id)->count();
-            $relatedProducts = Product::with(['reviews'])->active()->related($product->id)->limit(12)->get();
-            $deal_of_the_day = DealOfTheDay::where('product_id', $product->id)->where('status', 1)->first();
-            return view('web-views.products.details', compact('product', 'countWishlist', 'countOrder', 'relatedProducts', 'deal_of_the_day'));
+        // Phase 2.5: cache the product-scoped reads (5 queries/hit) per slug+locale.
+        // Keyed by locale because the translate global scope loads translations for the
+        // current locale only. Invalidated on product save/delete (Product::boot events).
+        $cacheKey = ProductManager::product_detail_cache_key($slug, Helpers::default_lang());
+        $payload = Cache::remember($cacheKey, ProductManager::DETAIL_CACHE_TTL, function () use ($slug) {
+            $product = Product::active()->with(['reviews'])->where('slug', $slug)->first();
+            if ($product == null) {
+                return null;
+            }
+            return [
+                'product' => $product,
+                'countOrder' => OrderDetail::where('product_id', $product->id)->count(),
+                'countWishlist' => Wishlist::where('product_id', $product->id)->count(),
+                'relatedProducts' => Product::with(['reviews'])->active()->related($product->id)->limit(12)->get(),
+                'deal_of_the_day' => DealOfTheDay::where('product_id', $product->id)->where('status', 1)->first(),
+            ];
+        });
+
+        if ($payload == null) {
+            // Don't persist a negative lookup (a product with this slug may be created later).
+            Cache::forget($cacheKey);
+            Toastr::error(translate('not_found'));
+            return back();
         }
 
-        Toastr::error(translate('not_found'));
-        return back();
+        return view('web-views.products.details', [
+            'product' => $payload['product'],
+            'countWishlist' => $payload['countWishlist'],
+            'countOrder' => $payload['countOrder'],
+            'relatedProducts' => $payload['relatedProducts'],
+            'deal_of_the_day' => $payload['deal_of_the_day'],
+        ]);
     }
 
     public function products(Request $request)
@@ -627,39 +648,28 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'top-rated') {
-            $reviews = Review::select('product_id', DB::raw('AVG(rating) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')->get();
-            $product_ids = [];
-            foreach ($reviews as $review) {
-                array_push($product_ids, $review['product_id']);
-            }
+            // Phase 2.5: cache the unbounded GROUP BY ranking (id list only). The
+            // whereIn + sort/filter/paginate below stay live, so prices/stock are fresh.
+            $product_ids = Cache::remember('listing_agg_top_rated', ProductManager::LISTING_AGG_TTL, function () {
+                return Review::select('product_id', DB::raw('AVG(rating) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 
         if ($request['data_from'] == 'best-selling') {
-            $details = OrderDetail::with('product')
-                ->select('product_id', DB::raw('COUNT(product_id) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')
-                ->get();
-            $product_ids = [];
-            foreach ($details as $detail) {
-                array_push($product_ids, $detail['product_id']);
-            }
+            $product_ids = Cache::remember('listing_agg_best_selling', ProductManager::LISTING_AGG_TTL, function () {
+                return OrderDetail::select('product_id', DB::raw('COUNT(product_id) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 
         if ($request['data_from'] == 'most-favorite') {
-            $details = Wishlist::with('product')
-                ->select('product_id', DB::raw('COUNT(product_id) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')
-                ->get();
-            $product_ids = [];
-            foreach ($details as $detail) {
-                array_push($product_ids, $detail['product_id']);
-            }
+            $product_ids = Cache::remember('listing_agg_most_favorite', ProductManager::LISTING_AGG_TTL, function () {
+                return Wishlist::select('product_id', DB::raw('COUNT(product_id) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 
@@ -782,39 +792,28 @@ class WebController extends Controller
         }
 
         if ($request['data_from'] == 'top-rated') {
-            $reviews = Review::select('product_id', DB::raw('AVG(rating) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')->get();
-            $product_ids = [];
-            foreach ($reviews as $review) {
-                array_push($product_ids, $review['product_id']);
-            }
+            // Phase 2.5: cache the unbounded GROUP BY ranking (id list only). The
+            // whereIn + sort/filter/paginate below stay live, so prices/stock are fresh.
+            $product_ids = Cache::remember('listing_agg_top_rated', ProductManager::LISTING_AGG_TTL, function () {
+                return Review::select('product_id', DB::raw('AVG(rating) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 
         if ($request['data_from'] == 'best-selling') {
-            $details = OrderDetail::with('product')
-                ->select('product_id', DB::raw('COUNT(product_id) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')
-                ->get();
-            $product_ids = [];
-            foreach ($details as $detail) {
-                array_push($product_ids, $detail['product_id']);
-            }
+            $product_ids = Cache::remember('listing_agg_best_selling', ProductManager::LISTING_AGG_TTL, function () {
+                return OrderDetail::select('product_id', DB::raw('COUNT(product_id) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 
         if ($request['data_from'] == 'most-favorite') {
-            $details = Wishlist::with('product')
-                ->select('product_id', DB::raw('COUNT(product_id) as count'))
-                ->groupBy('product_id')
-                ->orderBy("count", 'desc')
-                ->get();
-            $product_ids = [];
-            foreach ($details as $detail) {
-                array_push($product_ids, $detail['product_id']);
-            }
+            $product_ids = Cache::remember('listing_agg_most_favorite', ProductManager::LISTING_AGG_TTL, function () {
+                return Wishlist::select('product_id', DB::raw('COUNT(product_id) as count'))
+                    ->groupBy('product_id')->orderBy('count', 'desc')->pluck('product_id')->toArray();
+            });
             $query = $porduct_data->whereIn('id', $product_ids);
         }
 

@@ -290,6 +290,52 @@ class ProductManager
         return $path;
     }
 
+    // ---------------------------------------------------------------------
+    // Page caching (Phase 2.5) — file-driver friendly (no Redis/tags).
+    //
+    // Detail pages are cached per slug+locale (the translate global scope loads
+    // translations for one locale, so a cached payload is locale-specific). Writes
+    // invalidate via Product model events (see Product::boot) calling forgetDetail()
+    // — that covers admin/seller controllers AND backfill commands (all Eloquent).
+    // Bulk import uses raw DB::table inserts (bypasses events) but only creates NEW
+    // slugs, so there is no stale detail cache to clear for it.
+    //
+    // Listing aggregations (top-rated / best-selling / most-favorite) are global
+    // rankings cached on a plain TTL — short staleness on a "best selling" list is
+    // acceptable, so no event-based invalidation is needed there.
+    // ---------------------------------------------------------------------
+
+    /** TTL (seconds) for a cached product-detail payload. */
+    const DETAIL_CACHE_TTL = 900;   // 15 min
+
+    /** TTL (seconds) for cached listing-ranking id lists. */
+    const LISTING_AGG_TTL = 1800;   // 30 min
+
+    public static function product_detail_cache_key($slug, $locale)
+    {
+        return 'product_detail_' . $slug . '_' . $locale;
+    }
+
+    /** Configured locale codes (from business_settings 'language'); defaults to ['en']. */
+    public static function active_locales()
+    {
+        $row = \App\Model\BusinessSetting::where('type', 'language')->first();
+        $codes = collect(json_decode($row->value ?? '[]', true) ?: [])
+            ->pluck('code')->filter()->values()->all();
+        return !empty($codes) ? $codes : ['en'];
+    }
+
+    /** Drop the cached detail payload for a slug across every configured locale. */
+    public static function forget_product_detail_cache($slug)
+    {
+        if (!$slug) {
+            return;
+        }
+        foreach (self::active_locales() as $code) {
+            \Illuminate\Support\Facades\Cache::forget(self::product_detail_cache_key($slug, $code));
+        }
+    }
+
     public static function get_product_review($id)
     {
         $reviews = Review::where('product_id', $id)

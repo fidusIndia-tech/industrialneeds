@@ -51,7 +51,7 @@
                         @csrf
                         <div class="form-group">
                             <label class="text-dark">{{ \App\CPU\translate('Unit Price') }}
-                                <small class="text-muted">({{ \App\CPU\Helpers::currency_symbol() }})</small>
+                                <small class="text-muted">({{ \App\CPU\currency_symbol() }})</small>
                                 <span class="text-danger">*</span></label>
                             <input type="number" step="0.01" min="0" name="quoted_unit_price" class="form-control"
                                    value="{{ $quote->quoted_unit_price !== null ? \App\CPU\BackEndHelper::usd_to_currency($quote->quoted_unit_price) : '' }}" required>

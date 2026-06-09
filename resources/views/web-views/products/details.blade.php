@@ -1280,10 +1280,19 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <form action="{{ route('product.inquiry.submit') }}" method="POST">
+                    <form action="{{ route('product.quote.submit') }}" method="POST">
                         @csrf
                         <input type="hidden" name="product_id" value="{{ $product->id }}">
-                        
+
+                        <div class="form-group">
+                            <label for="quantity">{{\App\CPU\translate('Quantity Required')}} <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="quantity"
+                                   value="{{ $product->minimum_order_qty ?? 1 }}"
+                                   min="{{ $product->minimum_order_qty ?? 1 }}" required>
+                            @if(!empty($product->minimum_order_qty) && $product->minimum_order_qty > 1)
+                                <small class="text-muted">{{\App\CPU\translate('Minimum order quantity')}}: {{ $product->minimum_order_qty }}</small>
+                            @endif
+                        </div>
                         <div class="form-group">
                             <label for="customer_name">{{\App\CPU\translate('Your Name')}} <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" name="customer_name" required placeholder="{{\App\CPU\translate('Enter your full name')}}">

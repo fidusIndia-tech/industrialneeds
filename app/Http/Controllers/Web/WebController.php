@@ -1174,7 +1174,54 @@ class WebController extends Controller
         // Show a success message to the customer
         // Optional check to clear cache if needed
         Toastr::success(\App\CPU\translate('Your inquiry has been sent successfully! We will contact you soon.'));
-        
+
+        return back();
+    }
+
+    /**
+     * RFQ MVP (PR 1) — capture a quote request for an enquiry-only product.
+     * Creates a Quote (status=requested) and alerts the admin. Guest-friendly:
+     * customer_id is filled only when a customer is logged in. The admin prices it
+     * back in PR 2; the customer accepts via a tokenised link in PR 3.
+     */
+    public function quote_store(\Illuminate\Http\Request $request)
+    {
+        $request->validate([
+            'customer_name' => 'required',
+            'phone_number' => 'required',
+            'message' => 'required',
+            'quantity' => 'nullable|integer|min:1',
+        ]);
+
+        $product = Product::find($request->product_id);
+        $min_qty = $product ? max(1, (int) ($product->minimum_order_qty ?? 1)) : 1;
+        $requested_qty = max($min_qty, (int) ($request->quantity ?? $min_qty));
+
+        $quote = \App\Model\Quote::create([
+            'product_id' => $request->product_id,
+            'customer_id' => auth('customer')->check() ? auth('customer')->id() : null,
+            'customer_name' => $request->customer_name,
+            'phone_number' => $request->phone_number,
+            'email' => $request->email,
+            'message' => $request->message,
+            'requested_qty' => $requested_qty,
+            'status' => 'requested',
+            'accept_token' => \Illuminate\Support\Str::uuid(),
+        ]);
+
+        // Human-friendly reference once the id is known.
+        $quote->reference_no = 'Q-' . (100000 + $quote->id);
+        $quote->save();
+
+        // Alert admin (best-effort — never break the customer's flow on mail failure).
+        try {
+            \Illuminate\Support\Facades\Mail::to('founder@industrialneeds.com')->send(new \App\Mail\QuoteRequested($quote));
+        } catch (\Exception $e) {
+            // Silently ignore if mail isn't configured.
+        }
+
+        Toastr::success(\App\CPU\translate('Your quote request has been submitted! Our team will send you a price shortly.'));
+
         return back();
     }
 }

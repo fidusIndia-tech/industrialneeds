@@ -754,6 +754,17 @@
                                 </li>
                                       <!-- End Quote Requests -->
 
+                                <!-- Chat Leads Menu Item -->
+                                <li class="navbar-vertical-aside-has-menu {{Request::is('admin/chat-leads*')?'active':''}}">
+                                    <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.chat-leads.list')}}">
+                                        <i class="tio-chat-outlined nav-icon"></i>
+                                        <span class="navbar-vertical-aside-mini-mode-hidden-elements text-truncate">
+                                            {{\App\CPU\translate('Chat Leads')}}
+                                        </span>
+                                    </a>
+                                </li>
+                                      <!-- End Chat Leads -->
+
                                 <!-- Customer Feedback Menu Item -->
                                 <li class="navbar-vertical-aside-has-menu {{Request::is('admin/feedbacklist')?'active':''}}">
                                     <a class="js-navbar-vertical-aside-menu-link nav-link" href="{{route('admin.feedbacklist')}}">

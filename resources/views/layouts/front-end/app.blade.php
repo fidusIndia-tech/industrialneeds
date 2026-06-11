@@ -1275,5 +1275,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 @stack('script')
 
+@include('web-views.partials._chatbot')
+
 </body>
 </html>

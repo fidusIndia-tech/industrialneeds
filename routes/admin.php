@@ -561,6 +561,13 @@ Route::group(['namespace' => 'Admin', 'prefix' => 'admin', 'as' => 'admin.'], fu
             Route::post('respond/{id}', 'QuoteController@respond')->name('respond');
         });
 
+        // Chatbot Leads
+        Route::group(['prefix' => 'chat-leads', 'as' => 'chat-leads.', 'middleware'=>['module:support_section']], function () {
+            Route::get('list', 'ChatLeadController@index')->name('list');
+            Route::get('show/{id}', 'ChatLeadController@show')->name('show');
+            Route::post('status/{id}', 'ChatLeadController@status')->name('status');
+        });
+
         Route::group(['prefix' => 'delivery-man', 'as' => 'delivery-man.'], function () {
             Route::get('add', 'DeliveryManController@index')->name('add');
             Route::post('store', 'DeliveryManController@store')->name('store');

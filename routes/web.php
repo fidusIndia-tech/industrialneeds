@@ -143,6 +143,9 @@ Route::group(['namespace' => 'Web','middleware'=>['maintenance_mode']], function
     Route::post('product-inquiry', 'WebController@inquiry_store')->name('product.inquiry.submit');
     // Product Quote Requests (RFQ)
     Route::post('product-quote', 'WebController@quote_store')->name('product.quote.submit');
+    // On-site scripted chatbot (lead capture)
+    Route::post('chatbot/start', 'ChatbotController@start')->name('chatbot.start');
+    Route::post('chatbot/step', 'ChatbotController@step')->name('chatbot.step');
     // Customer-facing quote (tokenised — guest accessible from the quote email)
     Route::get('quote/{token}', 'QuoteController@show')->name('quote.show');
     Route::post('quote/{token}/accept', 'QuoteController@accept')->name('quote.accept');

@@ -19,21 +19,23 @@
             background: white;
         }
 
-        /* Floating WhatsApp chat button (homepage only, temporary test number) */
+        /* Floating WhatsApp button — compact circular icon, stacked ABOVE the chat launcher
+           (which sits at bottom-right bottom:20px). Icon-only so both fit in the corner. */
         .ind-whatsapp-float {
             position: fixed;
             right: 20px;
-            bottom: 20px;
+            bottom: 82px; /* sits just above the chat "Chat with us" launcher */
             z-index: 1030; /* above page content, below Bootstrap modals (1050) */
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 12px 18px;
+            justify-content: center;
+            width: 50px;
+            height: 50px;
+            padding: 0;
             background-color: #25D366;
             color: #ffffff;
-            font-weight: 600;
             line-height: 1;
-            border-radius: 50px; /* pill on desktop */
+            border-radius: 50%;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
             text-decoration: none;
             transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
@@ -52,20 +54,17 @@
             flex: 0 0 auto;
         }
 
-        /* Mobile: compact circular icon only */
+        /* Text label no longer shown — the button is a compact icon at all sizes. */
+        .ind-whatsapp-float__text {
+            display: none;
+        }
+
         @media (max-width: 767.98px) {
             .ind-whatsapp-float {
                 right: 16px;
-                bottom: 16px;
-                padding: 0;
-                width: 52px;
-                height: 52px;
-                justify-content: center;
-                border-radius: 50%;
-            }
-
-            .ind-whatsapp-float__text {
-                display: none;
+                bottom: 78px;
+                width: 48px;
+                height: 48px;
             }
         }
 

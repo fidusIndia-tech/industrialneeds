@@ -14,4 +14,4 @@ Disallow: /searched-products
 Disallow: /search-shop
 Crawl-delay: 20
 
-Sitemap: https://industrialneeds.co/sitemap.xml
+Sitemap: https://industrialsupply.in/sitemap.xml

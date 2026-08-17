@@ -6,7 +6,7 @@
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="og:title" content="Cancellation Policy - {{$web_config['name']->value}}"/>
     <meta property="og:url" content="{{env('APP_URL')}}/cancelation">
-    <meta property="og:description" content="Cancellation Policy for {{$web_config['name']->value}} — IndustrialNeeds.co">
+    <meta property="og:description" content="Cancellation Policy for {{$web_config['name']->value}} — IndustrialSupply.in">
     <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="twitter:title" content="Cancellation Policy - {{$web_config['name']->value}}"/>
     <meta property="twitter:url" content="{{env('APP_URL')}}/cancelation">
@@ -95,7 +95,7 @@
 
         <p class="policy-intro">
             At <strong>{{ \App\CPU\Helpers::get_business_settings('company_name') ?? 'Fidus India Automation Pvt Ltd' }}</strong>
-            (operating as <strong>IndustrialNeeds.co</strong>), we understand that plans can change.
+            (operating as <strong>IndustrialSupply.in</strong>), we understand that plans can change.
             This policy explains how and when you can cancel an order placed on our platform.
         </p>
 
@@ -129,7 +129,7 @@
         </div>
 
         <div class="policy-section">
-            <h2 class="policy-section-heading">4. Cancellation by IndustrialNeeds.co</h2>
+            <h2 class="policy-section-heading">4. Cancellation by IndustrialSupply.in</h2>
             <hr class="policy-divider">
             <p>We reserve the right to cancel an order under the following circumstances:</p>
             <ul>
@@ -154,7 +154,7 @@
             <h2 class="policy-section-heading">6. How to Contact Us for Cancellation</h2>
             <hr class="policy-divider">
             <ul>
-                <li>Visit <a href="https://industrialneeds.co">https://industrialneeds.co</a> and log in.</li>
+                <li>Visit <a href="https://industrialsupply.in">https://industrialsupply.in</a> and log in.</li>
                 <li>Go to <strong>My Orders</strong> → select order → click <strong>Cancel Order</strong>.</li>
                 <li>Or email <strong>{{ \App\CPU\Helpers::get_business_settings('company_email') }}</strong> / call <strong>{{ \App\CPU\Helpers::get_business_settings('company_phone') }}</strong> with your Order ID.</li>
             </ul>

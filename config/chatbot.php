@@ -14,7 +14,7 @@ return [
     // ---- Lead alert email ----
     // Where new-lead alerts go. Set CHATBOT_LEAD_EMAIL in .env to your SALES inbox.
     // (Email only fires when a phone number is captured — see 'notify'.)
-    'notify_email' => env('CHATBOT_LEAD_EMAIL', 'sales@industrialneeds.co'),
+    'notify_email' => env('CHATBOT_LEAD_EMAIL', 'sales@industrialsupply.in'),
 
     // Also email the moment a visitor merely OPENS the chat (before any details)?
     // Off by default to avoid noise — you can only call someone once they leave a number.

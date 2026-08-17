@@ -24,7 +24,7 @@ class InquiryController extends Controller
         $newInquiry = Inquiry::create($validatedData);
 
         // 3. Send the email alert to the founder
-        Mail::to('founder@industrialneeds.com')->send(new NewInquiryAlert($newInquiry));
+        Mail::to('founder@industrialsupply.in')->send(new NewInquiryAlert($newInquiry));
 
         // 4. Send the customer back with a success message
         return redirect()->back()->with('success', 'Thank you! Our team will call you shortly.');

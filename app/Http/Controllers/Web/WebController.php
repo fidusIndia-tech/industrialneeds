@@ -1177,7 +1177,7 @@ class WebController extends Controller
 
         // Send Email Alert
         try {
-            \Illuminate\Support\Facades\Mail::to('founder@industrialneeds.com')->send(new \App\Mail\NewInquiryAlert($lead));
+            \Illuminate\Support\Facades\Mail::to('founder@industrialsupply.in')->send(new \App\Mail\NewInquiryAlert($lead));
         } catch (\Exception $e) {
             // Silently fail if email isn't configured yet so it doesn't crash the user's screen
         }
@@ -1226,7 +1226,7 @@ class WebController extends Controller
 
         // Alert admin (best-effort — never break the customer's flow on mail failure).
         try {
-            \Illuminate\Support\Facades\Mail::to('founder@industrialneeds.com')->send(new \App\Mail\QuoteRequested($quote));
+            \Illuminate\Support\Facades\Mail::to('founder@industrialsupply.in')->send(new \App\Mail\QuoteRequested($quote));
         } catch (\Exception $e) {
             // Silently ignore if mail isn't configured.
         }

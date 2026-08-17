@@ -6,7 +6,7 @@
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="og:title" content="Return, Exchange & Refund Policy - {{$web_config['name']->value}}"/>
     <meta property="og:url" content="{{env('APP_URL')}}/refund-policy">
-    <meta property="og:description" content="Return, Exchange and Refund Policy for {{$web_config['name']->value}} — IndustrialNeeds.co">
+    <meta property="og:description" content="Return, Exchange and Refund Policy for {{$web_config['name']->value}} — IndustrialSupply.in">
     <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="twitter:title" content="Return, Exchange & Refund Policy - {{$web_config['name']->value}}"/>
     <meta property="twitter:url" content="{{env('APP_URL')}}/refund-policy">
@@ -95,7 +95,7 @@
 
         <p class="policy-intro">
             At <strong>{{ \App\CPU\Helpers::get_business_settings('company_name') ?? 'Fidus India Automation Pvt Ltd' }}</strong>
-            (operating as <strong>IndustrialNeeds.co</strong>), customer satisfaction is our priority.
+            (operating as <strong>IndustrialSupply.in</strong>), customer satisfaction is our priority.
             This policy outlines the terms and process for returns, exchanges, and refunds.
         </p>
 
@@ -166,7 +166,7 @@
         <div class="policy-section">
             <h2 class="policy-section-heading">6. Return Shipping Charges</h2>
             <hr class="policy-divider">
-            <p>If the return is due to a defective, damaged, or wrongly delivered product, <strong>IndustrialNeeds.co bears the return shipping cost</strong>. For all other return reasons, return shipping charges are the customer's responsibility.</p>
+            <p>If the return is due to a defective, damaged, or wrongly delivered product, <strong>IndustrialSupply.in bears the return shipping cost</strong>. For all other return reasons, return shipping charges are the customer's responsibility.</p>
         </div>
 
         <div class="policy-section">

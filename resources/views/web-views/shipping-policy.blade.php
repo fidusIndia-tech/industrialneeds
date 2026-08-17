@@ -6,7 +6,7 @@
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="og:title" content="Shipping Policy - {{$web_config['name']->value}}"/>
     <meta property="og:url" content="{{env('APP_URL')}}/shipping-policy">
-    <meta property="og:description" content="Shipping Policy for {{$web_config['name']->value}} — IndustrialNeeds.co">
+    <meta property="og:description" content="Shipping Policy for {{$web_config['name']->value}} — IndustrialSupply.in">
     <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="twitter:title" content="Shipping Policy - {{$web_config['name']->value}}"/>
     <meta property="twitter:url" content="{{env('APP_URL')}}/shipping-policy">
@@ -95,7 +95,7 @@
 
         <p class="policy-intro">
             At <strong>{{ \App\CPU\Helpers::get_business_settings('company_name') ?? 'Fidus India Automation Pvt Ltd' }}</strong>
-            (operating as <strong>IndustrialNeeds.co</strong>), we are committed to delivering your industrial
+            (operating as <strong>IndustrialSupply.in</strong>), we are committed to delivering your industrial
             products safely and on time. Please read this policy before placing an order.
         </p>
 
@@ -121,7 +121,7 @@
             <p><strong>5–8 business days</strong> after dispatch</p>
             <h3 class="policy-sub-heading">c) Remote / Rural Areas</h3>
             <p><strong>8–12 business days</strong> after dispatch</p>
-            <p>These are estimates only. IndustrialNeeds.co is not responsible for delays caused by third-party logistics partners, weather conditions, or public holidays.</p>
+            <p>These are estimates only. IndustrialSupply.in is not responsible for delays caused by third-party logistics partners, weather conditions, or public holidays.</p>
         </div>
 
         <div class="policy-section">

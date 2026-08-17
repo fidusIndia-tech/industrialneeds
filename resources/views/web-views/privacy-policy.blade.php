@@ -5,11 +5,11 @@
 @push('css_or_js')
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="og:title" content="Privacy Policy - {{$web_config['name']->value}}"/>
-    <meta property="og:url" content="https://industrialneeds.co/privacy-policy">
-    <meta property="og:description" content="Privacy Policy of {{$web_config['name']->value}} — IndustrialNeeds.co">
+    <meta property="og:url" content="https://industrialsupply.in/privacy-policy">
+    <meta property="og:description" content="Privacy Policy of {{$web_config['name']->value}} — IndustrialSupply.in">
     <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="twitter:title" content="Privacy Policy - {{$web_config['name']->value}}"/>
-    <meta property="twitter:url" content="https://industrialneeds.co/privacy-policy">
+    <meta property="twitter:url" content="https://industrialsupply.in/privacy-policy">
     <meta property="twitter:description" content="Privacy Policy of {{$web_config['name']->value}}">
     <style>
         .policy-page {
@@ -95,10 +95,10 @@
 
         <p class="policy-intro">
             At <strong>{{ \App\CPU\Helpers::get_business_settings('company_name') ?? 'Fidus India Automation Pvt Ltd' }}</strong>
-            (operating as <strong>IndustrialNeeds.co</strong>), we value your trust and are committed to
+            (operating as <strong>IndustrialSupply.in</strong>), we value your trust and are committed to
             protecting your personal information. This Privacy Policy explains how we collect, use, share,
             and safeguard your data when you visit or make a purchase on
-            <a href="https://industrialneeds.co">https://industrialneeds.co</a>.
+            <a href="https://industrialsupply.in">https://industrialsupply.in</a>.
             By using our website, you agree to the terms described in this policy.
         </p>
 
@@ -245,7 +245,7 @@
             <p>📧 <strong>Email:</strong> {{ \App\CPU\Helpers::get_business_settings('company_email') }}</p>
             <p>📞 <strong>Phone:</strong> {{ \App\CPU\Helpers::get_business_settings('company_phone') }}</p>
             <p>📍 <strong>Address:</strong> {{ \App\CPU\Helpers::get_business_settings('shop_address') }}</p>
-            <p>🌐 <strong>Website:</strong> <a href="https://industrialneeds.co">https://industrialneeds.co</a></p>
+            <p>🌐 <strong>Website:</strong> <a href="https://industrialsupply.in">https://industrialsupply.in</a></p>
         </div>
 
         {{-- Section 11 --}}
@@ -253,7 +253,7 @@
             <h2 class="policy-section-heading">11. Consent</h2>
             <hr class="policy-divider">
             <p>
-                By using our website <a href="https://industrialneeds.co">https://industrialneeds.co</a>,
+                By using our website <a href="https://industrialsupply.in">https://industrialsupply.in</a>,
                 registering an account, or placing an order, you acknowledge that you have read, understood,
                 and agree to be bound by this Privacy Policy. If you do not agree with any part of this policy,
                 please discontinue use of our website.

@@ -5,11 +5,11 @@
 @push('css_or_js')
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="og:title" content="Terms & Conditions - {{$web_config['name']->value}}"/>
-    <meta property="og:url" content="https://industrialneeds.co/terms">
-    <meta property="og:description" content="Terms & Conditions of {{$web_config['name']->value}} — IndustrialNeeds.co"/>
+    <meta property="og:url" content="https://industrialsupply.in/terms">
+    <meta property="og:description" content="Terms & Conditions of {{$web_config['name']->value}} — IndustrialSupply.in"/>
     <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
     <meta property="twitter:title" content="Terms & Conditions - {{$web_config['name']->value}}"/>
-    <meta property="twitter:url" content="https://industrialneeds.co/terms">
+    <meta property="twitter:url" content="https://industrialsupply.in/terms">
     <meta property="twitter:description" content="Terms & Conditions of {{$web_config['name']->value}}"/>
     <style>
         .policy-page {
@@ -95,8 +95,8 @@
 
         <p class="policy-intro">
             Welcome to <strong>{{ \App\CPU\Helpers::get_business_settings('company_name') ?? 'Fidus India Automation Pvt. Ltd.' }}</strong>
-            (operating as <strong>IndustrialNeeds.co</strong>). These Terms &amp; Conditions govern your access
-            to and use of our website <a href="https://industrialneeds.co">https://industrialneeds.co</a>,
+            (operating as <strong>IndustrialSupply.in</strong>). These Terms &amp; Conditions govern your access
+            to and use of our website <a href="https://industrialsupply.in">https://industrialsupply.in</a>,
             and the purchase of any products or services made available through it. By browsing, registering,
             or placing an order on our website, you confirm that you have read, understood, and agreed to be
             bound by these Terms. If you do not agree with any part of these Terms, please discontinue use
@@ -108,7 +108,7 @@
             <h2 class="policy-section-heading">1. Introduction</h2>
             <hr class="policy-divider">
             <p>
-                IndustrialNeeds.co is a B2B ecommerce platform owned and operated by
+                IndustrialSupply.in is a B2B ecommerce platform owned and operated by
                 <strong>Fidus India Automation Pvt. Ltd.</strong>, based in Gurgaon, Haryana, India.
                 We specialise in industrial automation, electrical, and industrial products, catering primarily
                 to Indian businesses, industries, buyers, and purchase teams.
@@ -162,7 +162,7 @@
             <h2 class="policy-section-heading">4. Products &amp; Services</h2>
             <hr class="policy-divider">
             <p>
-                IndustrialNeeds.co offers a curated catalogue of industrial automation, electrical components,
+                IndustrialSupply.in offers a curated catalogue of industrial automation, electrical components,
                 instrumentation, control systems, and related industrial products sourced from leading brands
                 and verified vendors.
             </p>
@@ -196,7 +196,7 @@
             <hr class="policy-divider">
             <p>
                 Placing an order on our website constitutes an offer to purchase the selected products from us.
-                <strong>All orders are subject to acceptance, availability, and verification by IndustrialNeeds.co.</strong>
+                <strong>All orders are subject to acceptance, availability, and verification by IndustrialSupply.in.</strong>
             </p>
             <ul>
                 <li>An order confirmation email or message acknowledges receipt of your order but does not constitute acceptance.</li>
@@ -248,7 +248,7 @@
                 <li>For full details, please refer to our <a href="{{ route('shipping-policy') }}">Shipping Policy</a>.</li>
             </ul>
             <p>
-                <strong>IndustrialNeeds.co / Fidus India Automation Pvt. Ltd. shall not be held liable for delays,
+                <strong>IndustrialSupply.in / Fidus India Automation Pvt. Ltd. shall not be held liable for delays,
                 non-delivery, or damages caused by courier partners, vendors, technical issues, or force majeure events</strong>
                 — including but not limited to natural calamities, strikes, transport disruptions, government restrictions,
                 or any circumstances beyond our reasonable control.
@@ -292,7 +292,7 @@
             <h2 class="policy-section-heading">11. Warranty</h2>
             <hr class="policy-divider">
             <p>
-                Products sold on IndustrialNeeds.co are covered by the warranty offered by their respective
+                Products sold on IndustrialSupply.in are covered by the warranty offered by their respective
                 manufacturers or brands. Warranty terms — including duration, coverage, and claim process —
                 vary by product and brand.
             </p>
@@ -300,7 +300,7 @@
                 <li>Warranty claims must be supported by the original invoice and any warranty documentation supplied with the product.</li>
                 <li>Warranty does not cover damage caused by misuse, incorrect installation, unauthorised repair, exposure to unsuitable operating conditions, or normal wear and tear.</li>
                 <li>We act as a facilitator for warranty claims and will assist you in coordinating with the relevant manufacturer or authorised service partner.</li>
-                <li>No additional warranty, express or implied, is provided by IndustrialNeeds.co beyond what is offered by the original manufacturer.</li>
+                <li>No additional warranty, express or implied, is provided by IndustrialSupply.in beyond what is offered by the original manufacturer.</li>
             </ul>
         </div>
 
@@ -343,7 +343,7 @@
             <hr class="policy-divider">
             <p>
                 To the maximum extent permitted by applicable law,
-                <strong>Fidus India Automation Pvt. Ltd. (IndustrialNeeds.co)</strong> shall not be liable for:
+                <strong>Fidus India Automation Pvt. Ltd. (IndustrialSupply.in)</strong> shall not be liable for:
             </p>
             <ul>
                 <li>Any indirect, incidental, special, consequential, or punitive damages, including loss of profits, revenue, business, or data.</li>
@@ -362,7 +362,7 @@
             <h2 class="policy-section-heading">15. Intellectual Property</h2>
             <hr class="policy-divider">
             <p>
-                All content available on IndustrialNeeds.co — including but not limited to text, graphics, logos,
+                All content available on IndustrialSupply.in — including but not limited to text, graphics, logos,
                 icons, product images, technical drawings, software, layouts, and design elements — is the property
                 of Fidus India Automation Pvt. Ltd. or its licensors and is protected under applicable copyright,
                 trademark, and other intellectual property laws.
@@ -430,8 +430,8 @@
                 For any questions, clarifications, or concerns regarding these Terms &amp; Conditions, please get in touch with us:
             </p>
             <p><strong>Business Name:</strong> Fidus India Automation Pvt. Ltd.</p>
-            <p><strong>Website:</strong> <a href="https://industrialneeds.co">https://industrialneeds.co</a></p>
-            <p><strong>Email:</strong> {{ \App\CPU\Helpers::get_business_settings('company_email') ?? 'support@industrialneeds.co' }}</p>
+            <p><strong>Website:</strong> <a href="https://industrialsupply.in">https://industrialsupply.in</a></p>
+            <p><strong>Email:</strong> {{ \App\CPU\Helpers::get_business_settings('company_email') ?? 'support@industrialsupply.in' }}</p>
             <p><strong>Phone:</strong> {{ \App\CPU\Helpers::get_business_settings('company_phone') ?? '+91-XXXXXXXXXX' }}</p>
             <p><strong>Address:</strong> {{ \App\CPU\Helpers::get_business_settings('shop_address') ?? 'Gurgaon, Haryana, India' }}</p>
         </div>

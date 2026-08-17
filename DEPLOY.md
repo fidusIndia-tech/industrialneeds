@@ -58,7 +58,7 @@ APP_ENV=production
 APP_DEBUG=false
 
 # Set to your real production domain — used to build sitemap URLs.
-SITEMAP_BASE_URL=https://industrialneeds.co
+SITEMAP_BASE_URL=https://industrialsupply.in
 
 # Leave as null unless you have provisioned Meilisearch (see section 7).
 SCOUT_DRIVER=null

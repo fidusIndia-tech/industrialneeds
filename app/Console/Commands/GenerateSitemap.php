@@ -34,7 +34,7 @@ class GenerateSitemap extends Command
     {
         // Canonical public base URL for generated links. Must point at the live
         // production domain regardless of APP_URL (which differs per environment).
-        $base = rtrim((string) env('SITEMAP_BASE_URL', 'https://industrialneeds.co'), '/');
+        $base = rtrim((string) env('SITEMAP_BASE_URL', 'https://industrialsupply.in'), '/');
         // This app is a CodeCanyon-flattened layout: the front controller lives at
         // the project root (root index.php), so /sitemap.xml is served from base_path(),
         // NOT public_path(). Writing here lets Apache serve the file directly.

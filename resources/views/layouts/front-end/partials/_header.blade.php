@@ -718,23 +718,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                             <ul class="dropdown-menu"
                                 style="right: 0%; text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
                                 @foreach($categories as $category)
-                                    <li class="dropdown">
-
-                                            <a style="font-family:  sans-serif !important;font-size: 1rem;
-                                            font-weight: 300;line-height: 1.5;"
-                                           <?php if ($category->childes->count() > 0) echo ""?>
-                                            href="{{route('products',['id'=> $category['id'],'data_from'=>'category','page'=>1])}}">
+                                    {{-- Below xl there is no hover, so the caret must stay a SEPARATE control:
+                                         tapping the name navigates, tapping the caret opens the sub-list. It
+                                         previously sat outside the row on a margin-left, which left icon, label
+                                         and caret scattered across unstyled inline anchors. .ind-mnav-* lays the
+                                         two out as one flex row without merging them. --}}
+                                    <li class="dropdown ind-mnav-item">
+                                        <a class="ind-mnav-link"
+                                           href="{{route('products',['id'=> $category['id'],'data_from'=>'category','page'=>1])}}">
                                             <img src="{{asset("storage/app/public/category/$category->icon")}}"
                                                  onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
                                                  style="width: 18px; height: 18px; ">
                                             <span
                                                 class="{{Session::get('direction') === 'rtl' ? 'pr-3' : 'pl-3'}}">{{$category['name']}}</span>
-
                                         </a>
                                         @if ($category->childes->count() > 0)
-                                            <a  data-toggle='dropdown' style="margin-left:50px;">
+                                            <a class="ind-mnav-caret" data-toggle="dropdown" href="javascript:void(0)"
+                                               aria-label="{{\App\CPU\translate('Show sub categories')}}">
                                                 <i class="czi-arrow-{{Session::get('direction') === 'rtl' ? 'left' : 'right'}}"
-                                                style="font-size: 10px !important;background:none !important;color:#4B5864;font:bold;"></i>
+                                                   style="font-size: 10px !important;background:none !important;color:#4B5864;"></i>
                                             </a>
                                         @endif
 
@@ -742,17 +744,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                             <ul class="dropdown-menu"
                                                 style="right: 10%; text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
                                                 @foreach($category['childes'] as $subCategory)
-                                                    <li class="dropdown">
-                                                        <a  href="{{route('products',['id'=> $subCategory['id'],'data_from'=>'category','page'=>1])}}">
+                                                    <li class="dropdown ind-mnav-item">
+                                                        <a class="ind-mnav-link"
+                                                           href="{{route('products',['id'=> $subCategory['id'],'data_from'=>'category','page'=>1])}}">
                                                             <span
                                                                 class="{{Session::get('direction') === 'rtl' ? 'pr-3' : 'pl-3'}}">{{$subCategory['name']}}</span>
                                                         </a>
 
                                                         @if($subCategory->childes->count()>0)
-                                                        <a style="font-family:  sans-serif !important;font-size: 1rem;
-                                                            font-weight: 300;line-height: 1.5;margin-left:50px;" data-toggle='dropdown'>
+                                                            <a class="ind-mnav-caret" data-toggle="dropdown" href="javascript:void(0)"
+                                                               aria-label="{{\App\CPU\translate('Show sub categories')}}">
                                                                 <i class="czi-arrow-{{Session::get('direction') === 'rtl' ? 'left' : 'right'}}"
-                                                                style="font-size: 10px !important;background:none !important;color:#4B5864;font:bold;"></i>
+                                                                   style="font-size: 10px !important;background:none !important;color:#4B5864;"></i>
                                                             </a>
                                                             <ul class="dropdown-menu"
                                                                 style="right: 100%; text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">

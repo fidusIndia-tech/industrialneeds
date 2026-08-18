@@ -1069,6 +1069,19 @@ class WebController extends Controller
         $contact->subject = $request->subject;
         $contact->message = $request->message;
         $contact->save();
+
+        // The homepage "Request a Quote" / "Quick Quote" buttons both land on this
+        // form, so these are real leads. Alert sales — best-effort, since the message
+        // is already stored and a mail failure must not surface as a form error.
+        $notify = config('leads.notify_email');
+        if ($notify) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($notify)->send(new \App\Mail\ContactMessage($contact));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         Toastr::success(translate('Your Message Send Successfully'));
         return back();
     }

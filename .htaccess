@@ -3,6 +3,18 @@
         Options -MultiViews -Indexes
     </IfModule>
     RewriteEngine On
+
+    # This project runs with the doc root at the project root (index.php lives here),
+    # so the framework's private directories sit inside the web root and are reachable
+    # unless blocked. storage/logs/laravel.log in particular is a plain-text file of
+    # stack traces — it can carry customer data, tokens and connection errors.
+    # storage/app/public holds uploaded media and IS served, so it stays reachable.
+    RewriteRule ^storage/logs/ - [F,L]
+    RewriteRule ^storage/framework/ - [F,L]
+    RewriteCond %{REQUEST_URI} !^/storage/app/public/
+    RewriteRule ^storage/app/ - [F,L]
+    RewriteRule ^(bootstrap|config|database|routes|tests)/ - [F,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -28,3 +40,10 @@
     Order allow,deny
     Deny from all
 </Files>
+
+# Project metadata that discloses versions and dependencies. Same Apache 2.2-style
+# syntax as the .env rule above, which is known to work on this host.
+<FilesMatch "^(\.env.*|\.git.*|composer\.(json|lock)|package(-lock)?\.json|artisan|phpunit\.xml|webpack\.mix\.js|server\.php|README\.md|.*\.(sql|log|sh|bak|old))$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

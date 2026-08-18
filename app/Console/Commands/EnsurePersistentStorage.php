@@ -33,6 +33,18 @@ class EnsurePersistentStorage extends Command
             return self::SUCCESS; // disabled (e.g. local dev) — do nothing
         }
 
+        // Shared hosts (CloudLinux/Hostinger) routinely put symlink() in disable_functions.
+        // Bail out BEFORE step 3 touches anything: that step deletes the real directory and
+        // then calls symlink(), so without this guard a disabled symlink() leaves NOTHING at
+        // storage/app/public and every image on the site 404s. Note @ does not suppress the
+        // resulting "Call to undefined function" Error on PHP 8.
+        if (!function_exists('symlink')) {
+            $this->error('PHP symlink() is disabled on this host (see disable_functions in php -i).');
+            $this->line('Nothing was changed. PHP cannot manage the media link here — use a');
+            $this->line('shell-level cron instead. See DEPLOY.md section 5a.');
+            return self::FAILURE;
+        }
+
         $link   = storage_path('app/public');
         $target = rtrim(env('STORAGE_PERSISTENT_PATH', dirname(base_path()) . DIRECTORY_SEPARATOR . 'persistent_public'), DIRECTORY_SEPARATOR);
 

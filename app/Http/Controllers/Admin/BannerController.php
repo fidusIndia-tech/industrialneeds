@@ -49,6 +49,9 @@ class BannerController extends Controller
         $banner->resource_id = $request[$request->resource_type.'_id'];
         $banner->url = $request->url;
         $banner->photo = ImageManager::upload('banner/', 'png', $request->file('image'));
+        if ($request->file('mobile_image')) {
+            $banner->photo_mobile = ImageManager::upload('banner/', 'png', $request->file('mobile_image'));
+        }
         $banner->save();
         Toastr::success('Banner added successfully!');
         return back();
@@ -87,6 +90,13 @@ class BannerController extends Controller
         if($request->file('image')) {
             $banner->photo = ImageManager::update('banner/', $banner['photo'], 'png', $request->file('image'));
         }
+        if($request->file('mobile_image')) {
+            // update() deletes $old_image first, and an empty name would resolve to the
+            // banner/ directory itself — so only take that path when one already exists.
+            $banner->photo_mobile = empty($banner['photo_mobile'])
+                ? ImageManager::upload('banner/', 'png', $request->file('mobile_image'))
+                : ImageManager::update('banner/', $banner['photo_mobile'], 'png', $request->file('mobile_image'));
+        }
         $banner->save();
 
         Toastr::success('Banner updated successfully!');
@@ -97,6 +107,9 @@ class BannerController extends Controller
     {
         $br = Banner::find($request->id);
         ImageManager::delete('/banner/' . $br['photo']);
+        if (!empty($br['photo_mobile'])) {
+            ImageManager::delete('/banner/' . $br['photo_mobile']);
+        }
         $br->delete();
         return response()->json();
     }

@@ -106,7 +106,7 @@
                                         </div>
 
                                         <label for="name">{{ \App\CPU\translate('Image')}}</label><span
-                                            class="badge badge-soft-danger">( {{\App\CPU\translate('ratio')}} 4:1 )</span>
+                                            class="badge badge-soft-danger">( {{\App\CPU\translate('ratio')}} 3:1 &mdash; 1600 x 533 px )</span>
                                         <br>
                                         <div class="custom-file" style="text-align: left">
                                             <input type="file" name="image" id="mbimageFileUploader"
@@ -115,6 +115,18 @@
                                             <label class="custom-file-label"
                                                    for="mbimageFileUploader">{{\App\CPU\translate('choose')}} {{\App\CPU\translate('file')}}</label>
                                         </div>
+
+                                        <br>
+                                        <label for="mobile_image">{{ \App\CPU\translate('Mobile Image')}}</label><span
+                                            class="badge badge-soft-secondary">( {{\App\CPU\translate('optional')}} &mdash; {{\App\CPU\translate('ratio')}} 4:3 &mdash; 1080 x 810 px )</span>
+                                        <br>
+                                        <div class="custom-file" style="text-align: left">
+                                            <input type="file" name="mobile_image" id="mbMobileImageFileUploader"
+                                                   class="custom-file-input"
+                                                   accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*">
+                                            <label class="custom-file-label"
+                                                   for="mbMobileImageFileUploader">{{\App\CPU\translate('choose')}} {{\App\CPU\translate('file')}}</label>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
                                         <center>
@@ -122,6 +134,11 @@
                                                 style="width: auto;border: 1px solid; border-radius: 10px; max-width:400px;"
                                                 id="mbImageviewer"
                                                 src="{{asset('storage/app/public/banner')}}/{{$banner['photo']}}"
+                                                alt=""/>
+                                            <img
+                                                style="width: auto;border: 1px solid; border-radius: 10px; max-width:200px; margin-top: 10px; {{empty($banner['photo_mobile']) ? 'display: none;' : ''}}"
+                                                id="mbMobileImageviewer"
+                                                src="{{empty($banner['photo_mobile']) ? '' : asset('storage/app/public/banner').'/'.$banner['photo_mobile']}}"
                                                 alt=""/>
                                         </center>
                                     </div>
@@ -184,6 +201,16 @@
 
         $("#mbimageFileUploader").change(function () {
             mbimagereadURL(this);
+        });
+
+        $("#mbMobileImageFileUploader").change(function () {
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#mbMobileImageviewer').attr('src', e.target.result).show();
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
         });
     </script>
 @endpush

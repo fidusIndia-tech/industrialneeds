@@ -92,40 +92,43 @@
 
         {{-- B2B support strip — fills the space under the banner, beside the category sidebar --}}
         <div class="ind-hero-support">
-            <h6 class="ind-hero-support-title">{{\App\CPU\translate('Need industrial products for your business?')}}</h6>
+            {{-- Page h1. The homepage had none at all, so search engines had no stated
+                 subject for the site's most-linked page. Styling is carried entirely by
+                 .ind-hero-support-title, so the tag change is not a visual change. --}}
+            <h1 class="ind-hero-support-title">{{\App\CPU\translate('Industrial, Electrical & Automation Supplies for Business')}}</h1>
             <div class="ind-hero-support-grid">
                 <div class="ind-hero-support-card">
                     <span class="ind-hero-support-ic"><i class="czi-package"></i></span>
                     <div class="ind-hero-support-text">
-                        <h6>{{\App\CPU\translate('Bulk Orders')}}</h6>
+                        <h3>{{\App\CPU\translate('Bulk Orders')}}</h3>
                         <p>{{\App\CPU\translate('Best pricing for volume requirements')}}</p>
                     </div>
                 </div>
                 <a href="{{route('contacts')}}" class="ind-hero-support-card">
                     <span class="ind-hero-support-ic"><i class="czi-message"></i></span>
                     <div class="ind-hero-support-text">
-                        <h6>{{\App\CPU\translate('Quick Quote')}}</h6>
+                        <h3>{{\App\CPU\translate('Quick Quote')}}</h3>
                         <p>{{\App\CPU\translate('Fast response from our sourcing team')}}</p>
                     </div>
                 </a>
                 <div class="ind-hero-support-card">
                     <span class="ind-hero-support-ic"><i class="czi-search"></i></span>
                     <div class="ind-hero-support-text">
-                        <h6>{{\App\CPU\translate('Hard-to-Find Products')}}</h6>
+                        <h3>{{\App\CPU\translate('Hard-to-Find Products')}}</h3>
                         <p>{{\App\CPU\translate('We help source specific industrial items')}}</p>
                     </div>
                 </div>
                 <div class="ind-hero-support-card">
                     <span class="ind-hero-support-ic"><i class="czi-delivery"></i></span>
                     <div class="ind-hero-support-text">
-                        <h6>{{\App\CPU\translate('Global Supply')}}</h6>
+                        <h3>{{\App\CPU\translate('Global Supply')}}</h3>
                         <p>{{\App\CPU\translate('Reliable delivery support worldwide')}}</p>
                     </div>
                 </div>
             </div>
             <div class="ind-hero-support-cta">
                 <div class="ind-hero-support-cta-text">
-                    <h6>{{\App\CPU\translate('Have a bulk requirement or specific part number?')}}</h6>
+                    <h3>{{\App\CPU\translate('Have a bulk requirement or specific part number?')}}</h3>
                     <p>{{\App\CPU\translate('Send your product list and get quick sourcing support.')}}</p>
                 </div>
                 <a href="{{route('contacts')}}" class="btn btn-accent">

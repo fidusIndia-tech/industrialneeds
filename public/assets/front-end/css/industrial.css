@@ -1878,7 +1878,8 @@ a.ind-hero-support-card { text-decoration: none; }
     color: var(--ind-navy);
 }
 
-.ind-hero-support-text h6 {
+.ind-hero-support-text h6,
+.ind-hero-support-text h3 {
     font-size: 13px;
     font-weight: 700;
     color: var(--ind-text);
@@ -1916,7 +1917,8 @@ a.ind-hero-support-card { text-decoration: none; }
     border-radius: 10px;
 }
 
-.ind-hero-support-cta-text h6 {
+.ind-hero-support-cta-text h6,
+.ind-hero-support-cta-text h3 {
     font-size: 15px;
     font-weight: 700;
     color: var(--ind-navy);

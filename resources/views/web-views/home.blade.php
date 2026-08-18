@@ -1,17 +1,83 @@
 @extends('layouts.front-end.app')
 
-@section('title',\App\CPU\translate('Welcome To').' '.$web_config['name']->value)
+@php
+    // ---- Homepage SEO ----
+    // This is the site's most-linked page and it previously declared no h1, no
+    // structured data, and a title led by a stop word ("Welcome To") in front of the
+    // lowercase company name held in business_settings. Product pages already carry
+    // proper meta + JSON-LD; this brings the homepage in line.
+    $siteName  = $web_config['name']->value ?? config('app.name');
+    $homeUrl   = url('/');
+    $homeLogo  = asset('storage/app/public/company') . '/' . $web_config['web_logo']->value;
+    $homeTitle = \App\CPU\translate('Industrial, Electrical & Automation Supplies') . ' | Industrialsupply';
+
+    // Sentence-case prose is deliberately NOT passed through translate(): the
+    // auto-inserter title-cases keys it has not seen, which would mangle it. The
+    // layout's fallback description makes the same choice.
+    $homeDesc = 'Industrial, electrical and automation supplies online — components, fasteners, tools and material handling. Bulk pricing and fast Pan-India delivery.';
+
+    // og:description came from substr() over raw HTML, which could cut mid-tag or
+    // mid-entity and was printed unescaped into an attribute. Strip tags first.
+    $homeSocialDesc = \Illuminate\Support\Str::limit(
+        trim(preg_replace('/\s+/', ' ', strip_tags(optional($web_config['about'] ?? null)->value ?: $homeDesc))), 200
+    );
+
+    $homeLd = [
+        '@context' => 'https://schema.org',
+        '@graph' => [
+            [
+                '@type'       => 'Organization',
+                '@id'         => $homeUrl . '#organization',
+                'name'        => $siteName,
+                'url'         => $homeUrl,
+                'logo'        => $homeLogo,
+                'description' => $homeDesc,
+            ],
+            [
+                '@type'           => 'WebSite',
+                '@id'             => $homeUrl . '#website',
+                'url'             => $homeUrl,
+                'name'            => $siteName,
+                'publisher'       => ['@id' => $homeUrl . '#organization'],
+                'inLanguage'      => str_replace('_', '-', app()->getLocale()),
+                'potentialAction' => [
+                    '@type'       => 'SearchAction',
+                    'target'      => [
+                        '@type'       => 'EntryPoint',
+                        'urlTemplate' => route('products') . '?name={search_term_string}&data_from=search&page=1',
+                    ],
+                    'query-input' => 'required name=search_term_string',
+                ],
+            ],
+        ],
+    ];
+
+    $homePhone = \App\CPU\Helpers::get_business_settings('company_phone');
+    $homeEmail = \App\CPU\Helpers::get_business_settings('company_email');
+    if (!empty($homePhone)) { $homeLd['@graph'][0]['telephone'] = $homePhone; }
+    if (!empty($homeEmail)) { $homeLd['@graph'][0]['email'] = $homeEmail; }
+@endphp
+
+@section('title', $homeTitle)
+@section('meta_description', $homeDesc)
 
 @push('css_or_js')
-    <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
-    <meta property="og:title" content="Welcome To {{$web_config['name']->value}} Home"/>
-    <meta property="og:url" content="{{env('APP_URL')}}">
-    <meta property="og:description" content="{!! substr($web_config['about']->value,0,100) !!}">
+    <script type="application/ld+json">{!! json_encode($homeLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
-    <meta property="twitter:card" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']->value}}"/>
-    <meta property="twitter:title" content="Welcome To {{$web_config['name']->value}} Home"/>
-    <meta property="twitter:url" content="{{env('APP_URL')}}">
-    <meta property="twitter:description" content="{!! substr($web_config['about']->value,0,100) !!}">
+    <meta property="og:type" content="website"/>
+    <meta property="og:site_name" content="{{$siteName}}"/>
+    <meta property="og:image" content="{{$homeLogo}}"/>
+    <meta property="og:title" content="{{$homeTitle}}"/>
+    <meta property="og:url" content="{{$homeUrl}}">
+    <meta property="og:description" content="{{$homeSocialDesc}}">
+
+    {{-- twitter:card takes a card TYPE, not an image URL — it was set to the logo
+         path, which is invalid and left the card unrendered. --}}
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:image" content="{{$homeLogo}}"/>
+    <meta name="twitter:title" content="{{$homeTitle}}"/>
+    <meta name="twitter:url" content="{{$homeUrl}}">
+    <meta name="twitter:description" content="{{$homeSocialDesc}}">
 
     <link rel="stylesheet" href="{{asset('public/assets/front-end')}}/css/home.css"/>
     <style>

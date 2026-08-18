@@ -2556,3 +2556,55 @@ html[dir="rtl"] .ind-contact-form-title::after {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--ind-accent) !important;
 }
+
+/* ---------- category dropdown in the sub-xl header (.mega-nav1) ----------
+   The >=xl menu (.mega-nav) uses .dropdown-item/.flex-between; this one shipped
+   with bare inline anchors, so the icon, label and caret scattered across the
+   row and long names pushed the caret onto its own line.
+
+   The caret stays a SEPARATE anchor on purpose: below xl there is no hover, so
+   it is the only way to open a sub-category list, and it must not carry the
+   parent's href or tapping it would navigate away instead of expanding. */
+.mega-nav1 .ind-mnav-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.mega-nav1 .ind-mnav-link {
+    flex: 1 1 auto;
+    min-width: 0;                /* lets the label ellipsis instead of forcing a wrap */
+    display: flex;
+    align-items: center;
+    padding: 7px 14px;
+    color: var(--ind-text, #2B3844);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.mega-nav1 .ind-mnav-link span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mega-nav1 .ind-mnav-caret {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    cursor: pointer;
+}
+
+.mega-nav1 .ind-mnav-link:hover,
+.mega-nav1 .ind-mnav-caret:hover {
+    background: var(--ind-bg, #F4F6F8);
+    text-decoration: none;
+}
+
+/* The flyout is absolutely positioned, so keep it out of the flex row. */
+.mega-nav1 .ind-mnav-item > .dropdown-menu {
+    flex: 0 0 100%;
+}

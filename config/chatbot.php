@@ -23,7 +23,7 @@ return [
     'notify_on_engagement' => env('CHATBOT_NOTIFY_ON_OPEN', false),
 
     // ---- Widget appearance ----
-    'title'       => env('CHATBOT_TITLE', 'Industrial Needs'),
+    'title'       => env('CHATBOT_TITLE', 'Industrialsupply'),
     'subtitle'    => 'Typically replies in a few minutes',
     'primary'     => '#0056b3',   // header / bubble colour
     'launcher'    => 'Chat with us',
@@ -42,7 +42,7 @@ return [
     'flow' => [
         [
             'key' => 'intent',
-            'bot' => '👋 Hi! Welcome to Industrial Needs. What can we help you with?',
+            'bot' => '👋 Hi! Welcome to Industrialsupply. What can we help you with?',
             'type' => 'buttons',
             'options' => ['Request a price', 'Check availability', 'Technical question', 'Something else'],
         ],

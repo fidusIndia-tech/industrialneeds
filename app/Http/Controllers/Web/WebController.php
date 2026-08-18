@@ -1175,11 +1175,14 @@ class WebController extends Controller
             'message' => $request->message,
         ]);
 
-        // Send Email Alert
-        try {
-            \Illuminate\Support\Facades\Mail::to('founder@industrialsupply.in')->send(new \App\Mail\NewInquiryAlert($lead));
-        } catch (\Exception $e) {
-            // Silently fail if email isn't configured yet so it doesn't crash the user's screen
+        // Send Email Alert — recipient comes from LEAD_NOTIFY_EMAIL (config/leads.php)
+        $notify = config('leads.notify_email');
+        if ($notify) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($notify)->send(new \App\Mail\NewInquiryAlert($lead));
+            } catch (\Exception $e) {
+                // Silently fail if email isn't configured yet so it doesn't crash the user's screen
+            }
         }
 
         // Show a success message to the customer
@@ -1224,11 +1227,14 @@ class WebController extends Controller
         $quote->reference_no = 'Q-' . (100000 + $quote->id);
         $quote->save();
 
-        // Alert admin (best-effort — never break the customer's flow on mail failure).
-        try {
-            \Illuminate\Support\Facades\Mail::to('founder@industrialsupply.in')->send(new \App\Mail\QuoteRequested($quote));
-        } catch (\Exception $e) {
-            // Silently ignore if mail isn't configured.
+        // Alert sales (best-effort — never break the customer's flow on mail failure).
+        $notify = config('leads.notify_email');
+        if ($notify) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($notify)->send(new \App\Mail\QuoteRequested($quote));
+            } catch (\Exception $e) {
+                // Silently ignore if mail isn't configured.
+            }
         }
 
         Toastr::success(\App\CPU\translate('Your quote request has been submitted! Our team will send you a price shortly.'));

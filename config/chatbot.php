@@ -12,9 +12,11 @@ return [
     'enabled' => env('CHATBOT_ENABLED', true),
 
     // ---- Lead alert email ----
-    // Where new-lead alerts go. Set CHATBOT_LEAD_EMAIL in .env to your SALES inbox.
+    // Where new-lead alerts go. Falls back to LEAD_NOTIFY_EMAIL (config/leads.php) so
+    // one variable moves the chatbot and the enquiry/quote alerts together; set
+    // CHATBOT_LEAD_EMAIL only when bot chatter should land in a separate inbox.
     // (Email only fires when a phone number is captured — see 'notify'.)
-    'notify_email' => env('CHATBOT_LEAD_EMAIL', 'sales@industrialsupply.in'),
+    'notify_email' => env('CHATBOT_LEAD_EMAIL') ?: env('LEAD_NOTIFY_EMAIL', 'sales@fidusindia.com'),
 
     // Also email the moment a visitor merely OPENS the chat (before any details)?
     // Off by default to avoid noise — you can only call someone once they leave a number.

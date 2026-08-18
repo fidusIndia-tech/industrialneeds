@@ -9,8 +9,9 @@
  * Leave it empty to switch the alerts off entirely — the lead is still saved to
  * the database either way, so nothing is lost, it just is not emailed out.
  *
- * The chatbot widget keeps its own recipient (CHATBOT_LEAD_EMAIL, see
- * config/chatbot.php) so bot chatter can be routed away from real enquiries.
+ * The chatbot widget falls back to this same address, so one variable moves both.
+ * Set CHATBOT_LEAD_EMAIL (see config/chatbot.php) only when bot chatter should
+ * land in a separate inbox from real enquiries.
  */
 
 return [

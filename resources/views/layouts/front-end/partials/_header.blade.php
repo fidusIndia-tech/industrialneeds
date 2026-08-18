@@ -562,9 +562,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     @php($categories=\App\CPU\CategoryManager::nav_tree(11))
                     <ul class="navbar-nav mega-nav pr-2 pl-2 {{Session::get('direction') === 'rtl' ? 'ml-2' : 'mr-2'}} d-none d-xl-block ">
                         <!--web-->
-                        <li class="nav-item {{!request()->is('/')?'dropdown':''}}">
+                        {{-- The theme used to pin this panel permanently open on the homepage
+                             (no .dropdown class, pointer-events:none on the toggle, display:block
+                             on the menu) so it acted as a category sidebar beside the banner. The
+                             hero now renders its own .ind-cat-sidebar for that, and the two sat on
+                             top of each other — ~95,000px² of overlap, the absolute menu covering
+                             the sidebar it duplicated. It is a normal dropdown on every page now. --}}
+                        <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle {{Session::get('direction') === 'rtl' ? 'pr-0' : 'pl-0'}}"
-                               href="#" data-toggle="dropdown" style="{{request()->is('/')?'pointer-events: none':''}}">
+                               href="#" data-toggle="dropdown">
                                 <i class="czi-menu align-middle mt-n1 {{Session::get('direction') === 'rtl' ? 'ml-2' : 'mr-2'}}"></i>
                                 <span
                                     style="margin-{{Session::get('direction') === 'rtl' ? 'right' : 'left'}}: 40px !important;margin-{{Session::get('direction') === 'rtl' ? 'left' : 'right'}}: 50px">
@@ -572,7 +578,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 </span>
                             </a>
                             @if(request()->is('/'))
-                                <ul class="dropdown-menu" style="right: 0%; display: block!important;
+                                <ul class="dropdown-menu" style="right: 0%;
                                     margin-top: 8px; margin-right: 11px;border: 1px solid #ccccccb3;
                                     border-bottom-left-radius: 5px;
                                     border-bottom-right-radius: 5px; box-shadow: none;min-width: 303px !important;{{Session::get('direction') === 'rtl' ? 'margin-right: 1px!important;text-align: right;' : 'margin-left: 1px!important;text-align: left;'}}padding-bottom: 0px!important;">
@@ -645,7 +651,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                     style="right: 0; text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
                                     @foreach($categories as $category)
                                         <li class="dropdown">
-                                            <a class="dropdown-item flex-between <?php if ($category->childes->count() > 0) echo "data-toggle='dropdown"?> "
+                                            <a class="dropdown-item flex-between"
                                                <?php if ($category->childes->count() > 0) echo "data-toggle='dropdown'"?> href="javascript:"
                                                onclick="location.href='{{route('products',['id'=> $category['id'],'data_from'=>'category','page'=>1])}}'">
                                                 <div>
@@ -666,7 +672,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                                     style="right: 100%; text-align: {{Session::get('direction') === 'rtl' ? 'right' : 'left'}};">
                                                     @foreach($category['childes'] as $subCategory)
                                                         <li class="dropdown">
-                                                            <a class="dropdown-item flex-between <?php if ($subCategory->childes->count() > 0) echo "data-toggle='dropdown"?> "
+                                                            <a class="dropdown-item flex-between"
                                                                <?php if ($subCategory->childes->count() > 0) echo "data-toggle='dropdown'"?> href="javascript:"
                                                                onclick="location.href='{{route('products',['id'=> $subCategory['id'],'data_from'=>'category','page'=>1])}}'">
                                                                 <div>

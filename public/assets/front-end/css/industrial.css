@@ -2608,3 +2608,65 @@ html[dir="rtl"] .ind-contact-form-title::after {
 .mega-nav1 .ind-mnav-item > .dropdown-menu {
     flex: 0 0 100%;
 }
+
+/* Below xl the sub-category lists expand INLINE rather than flying out to the
+   side. Absolute flyouts are a hover/desktop pattern: they need pointer precision
+   to traverse, they escape the menu box, and — the reason this matters — they make
+   it impossible to scroll the parent, because any overflow rule that contains the
+   list also clips the flyout. Expanding in place removes that conflict, so the
+   menu can cap its height and scroll on short screens. */
+@media (max-width: 1199.98px) {
+    .mega-nav1 > .nav-item > .dropdown-menu {
+        max-height: calc(100vh - 200px);
+        min-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;   /* stops the page scrolling once the list ends */
+    }
+
+    /* position:static takes these out of the positioned context, so the inline
+       right:10% / right:100% on the markup stops applying without needing removal. */
+    .mega-nav1 .ind-mnav-item > .dropdown-menu {
+        position: static;
+        float: none;
+        display: none;
+        width: auto;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: var(--ind-bg, #F4F6F8);
+    }
+
+    .mega-nav1 .ind-mnav-item > .dropdown-menu.show {
+        display: block;
+    }
+
+    /* Step each level in so the hierarchy is readable without the flyout offset. */
+    .mega-nav1 .ind-mnav-item > .dropdown-menu .ind-mnav-link {
+        padding-left: 32px;
+        font-weight: 400;
+    }
+
+    .mega-nav1 .ind-mnav-item > .dropdown-menu .dropdown-menu .ind-mnav-link,
+    .mega-nav1 .ind-mnav-item > .dropdown-menu .dropdown-menu .dropdown-item {
+        padding-left: 50px;
+        font-size: 13.5px;
+    }
+
+    /* Caret points down while its list is open. */
+    .mega-nav1 .ind-mnav-caret i {
+        transition: transform .15s ease;
+    }
+
+    .mega-nav1 .ind-mnav-item.show > .ind-mnav-caret i {
+        transform: rotate(90deg);
+    }
+
+    .mega-nav1 > .nav-item > .dropdown-menu::-webkit-scrollbar { width: 6px; }
+    .mega-nav1 > .nav-item > .dropdown-menu::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 6px;
+    }
+}

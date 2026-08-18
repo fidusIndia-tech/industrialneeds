@@ -940,7 +940,9 @@ footer.page-footer .social-btn:hover {
    Banners contain text + logos, so they must show in FULL (never cropped).
    A fixed 3:1 ratio container keeps EVERY slide the same size regardless of the
    uploaded image's ratio; object-fit:contain fits the whole image inside it
-   (white letterboxing if the ratio differs) — never crops, never stretches. */
+   (white letterboxing if the ratio differs) — never crops, never stretches.
+   Upload spec is 1600x533 (3:1). Anything else letterboxes: keep this in sync
+   with the ratio badge in resources/views/admin-views/banner/{view,edit}.blade.php. */
 .home-banner-carousel,
 .home-banner-carousel .carousel-inner,
 .home-banner-carousel .carousel-item {
@@ -954,6 +956,12 @@ footer.page-footer .social-btn:hover {
     border-radius: var(--ind-radius);
 }
 
+.home-banner-carousel .carousel-item picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 .home-banner-carousel .carousel-item img,
 .home-banner-carousel .ind-hero-banner-img {
     width: 100%;
@@ -962,6 +970,18 @@ footer.page-footer .social-btn:hover {
     object-position: center;
     display: block;
     background: #FFFFFF;
+}
+
+/* Phones: a 3:1 banner scaled to ~360px wide renders its copy at roughly a fifth
+   of design size, which is unreadable. Banners carrying a portrait-ish mobile
+   image (1080x810) get a 4:3 frame instead; .has-mobile-art is only emitted when
+   every published banner has one, so the frame never letterboxes a 3:1 slide. */
+@media (max-width: 767.98px) {
+    .home-banner-carousel.has-mobile-art,
+    .home-banner-carousel.has-mobile-art .carousel-inner,
+    .home-banner-carousel.has-mobile-art .carousel-item {
+        aspect-ratio: 4 / 3;
+    }
 }
 
 /* ---------- section headings (brands / featured / etc.) ---------- */

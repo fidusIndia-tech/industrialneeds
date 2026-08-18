@@ -41,8 +41,18 @@
     </div>
 
     <div class="col-lg-9 ind-hero-main col-md-12" style="margin-top: 3px;{{Session::get('direction') === "rtl" ? 'padding-right:10px;' : 'padding-left:10px;'}}">
-        @php($main_banner=\App\Model\Banner::where('banner_type','Main Banner')->where('published',1)->orderBy('id','desc')->get())
-        <div id="carouselExampleIndicators" class="carousel slide home-banner-carousel" data-ride="carousel">
+        @php
+            $main_banner = \App\Model\Banner::where('banner_type','Main Banner')->where('published',1)->orderBy('id','desc')->get();
+            /* Every slide shares one container, so the container can only take the taller
+               mobile ratio once EVERY published banner has mobile artwork. Until then the
+               carousel stays 3:1 and any mobile image already uploaded simply waits. */
+            $mobile_art = $main_banner->isNotEmpty() && $main_banner->every(function ($b) {
+                return !empty($b->photo_mobile);
+            });
+        @endphp
+        <div id="carouselExampleIndicators"
+             class="carousel slide home-banner-carousel {{ $mobile_art ? 'has-mobile-art' : '' }}"
+             data-ride="carousel">
             <ol class="carousel-indicators">
                 @foreach($main_banner as $key=>$banner)
                     <li data-target="#carouselExampleIndicators" data-slide-to="{{$key}}"
@@ -54,10 +64,16 @@
                 @foreach($main_banner as $key=>$banner)
                     <div class="carousel-item {{$key==0?'active':''}}">
                         <a href="{{$banner['url']}}">
-                            <img class="d-block ind-hero-banner-img"
-                                 onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
-                                 src="{{asset('storage/app/public/banner')}}/{{$banner['photo']}}"
-                                 alt="">
+                            <picture>
+                                @if(!empty($banner['photo_mobile']))
+                                    <source media="(max-width: 767.98px)"
+                                            srcset="{{asset('storage/app/public/banner')}}/{{$banner['photo_mobile']}}">
+                                @endif
+                                <img class="d-block ind-hero-banner-img"
+                                     onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
+                                     src="{{asset('storage/app/public/banner')}}/{{$banner['photo']}}"
+                                     alt="">
+                            </picture>
                         </a>
                     </div>
                 @endforeach

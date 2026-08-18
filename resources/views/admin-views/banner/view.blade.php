@@ -113,7 +113,7 @@
                                         </div>
 
                                         <label for="name">{{ \App\CPU\translate('Image')}}</label><span
-                                            class="badge badge-soft-danger">( {{\App\CPU\translate('ratio')}} 4:1 )</span>
+                                            class="badge badge-soft-danger">( {{\App\CPU\translate('ratio')}} 3:1 &mdash; 1600 x 533 px )</span>
                                         <br>
                                         <div class="custom-file" style="text-align: left">
                                             <input type="file" name="image" id="mbimageFileUploader"
@@ -121,6 +121,18 @@
                                                    accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*">
                                             <label class="custom-file-label"
                                                    for="mbimageFileUploader">{{\App\CPU\translate('choose')}} {{\App\CPU\translate('file')}}</label>
+                                        </div>
+
+                                        <br>
+                                        <label for="mobile_image">{{ \App\CPU\translate('Mobile Image')}}</label><span
+                                            class="badge badge-soft-secondary">( {{\App\CPU\translate('optional')}} &mdash; {{\App\CPU\translate('ratio')}} 4:3 &mdash; 1080 x 810 px )</span>
+                                        <br>
+                                        <div class="custom-file" style="text-align: left">
+                                            <input type="file" name="mobile_image" id="mbMobileImageFileUploader"
+                                                   class="custom-file-input"
+                                                   accept=".jpg, .png, .jpeg, .gif, .bmp, .tif, .tiff|image/*">
+                                            <label class="custom-file-label"
+                                                   for="mbMobileImageFileUploader">{{\App\CPU\translate('choose')}} {{\App\CPU\translate('file')}}</label>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -130,6 +142,10 @@
                                                 id="mbImageviewer"
                                                 src="{{asset('public\assets\back-end\img\400x400\img1.jpg')}}"
                                                 alt="banner image"/>
+                                            <img
+                                                style="width: auto;border: 1px solid; border-radius: 10px; max-width:200px; margin-top: 10px; display: none;"
+                                                id="mbMobileImageviewer"
+                                                alt="banner mobile image"/>
                                         </center>
                                     </div>
                                 </div>
@@ -201,7 +217,16 @@
                                                  onerror="this.src='{{asset('public/assets/front-end/img/image-place-holder.png')}}'"
                                                  src="{{asset('storage/app/public/banner')}}/{{$banner['photo']}}">
                                         </td>
-                                        <td>{{$banner->banner_type}}</td>
+                                        <td>
+                                            {{$banner->banner_type}}
+                                            @if($banner->banner_type == 'Main Banner')
+                                                @if(!empty($banner->photo_mobile))
+                                                    <span class="badge badge-soft-success ml-1">{{\App\CPU\translate('mobile art')}}</span>
+                                                @else
+                                                    <span class="badge badge-soft-warning ml-1">{{\App\CPU\translate('no mobile art')}}</span>
+                                                @endif
+                                            @endif
+                                        </td>
                                         <td><label class="switch"><input type="checkbox" class="status"
                                                                          id="{{$banner->id}}" <?php if ($banner->published == 1) echo "checked" ?>><span
                                                     class="slider round"></span></label></td>
@@ -286,6 +311,16 @@
 
         $("#mbimageFileUploader").change(function () {
             mbimagereadURL(this);
+        });
+
+        $("#mbMobileImageFileUploader").change(function () {
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#mbMobileImageviewer').attr('src', e.target.result).show();
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
         });
 
         function fbimagereadURL(input) {

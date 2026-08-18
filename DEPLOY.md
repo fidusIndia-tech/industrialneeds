@@ -132,39 +132,54 @@ Confirm this single cron entry exists on production (`crontab -e`):
 This keeps the media symlink healthy (every minute), regenerates the sitemap
 daily (02:00) and runs the background image jobs.
 
-### 5a. ⚠️ `STORAGE_PERSISTENT_LINK` — required on the live server
+### 5a. ⚠️ Media symlink — must be maintained from SHELL, not PHP
 
 Uploaded media lives OUTSIDE the deploy tree, reached by a symlink at
 `storage/app/public`. A panel "Deploy" rebuilds the web root and destroys that
 symlink, after which every image on the site 404s.
 
-`storage:persist` heals this within a minute — **but it is opt-in and a silent
-no-op unless the flag is set.** In the server `.env`:
+**On this host PHP cannot fix it.** `php -i | grep disable_functions` shows
+`symlink`, `link`, `exec`, `shell_exec`, `system`, `passthru` and `popen` are all
+disabled. The `storage:persist` command therefore CANNOT work here — it now
+detects this and aborts with a message instead of running (before the guard was
+added it deleted the directory and then died on the disabled `symlink()`, which
+is how the 2026-08-18 outage was made worse).
 
-```
-STORAGE_PERSISTENT_LINK=true
-# STORAGE_PERSISTENT_PATH=  # defaults to <parent-of-project-root>/persistent_public
-```
-
-Verify it is actually working — this must print a symlink, not a directory:
+Use the shell script instead. Install it ONCE, outside the deploy tree:
 
 ```bash
-ls -ld storage/app/public
-php artisan storage:persist --force -v   # --force ignores the flag, for testing
+cd ~/domains/industrialsupply.in/public_html
+cp scripts/relink-media.sh ~/domains/industrialsupply.in/relink-media.sh
+chmod +x ~/domains/industrialsupply.in/relink-media.sh
+~/domains/industrialsupply.in/relink-media.sh     # run once to verify
+ls -ld storage/app/public                          # must show 'l' and '-> .../persistent_public'
 ```
 
-If cron is not available on your plan, run `php artisan storage:persist --force`
-and `php artisan sitemap:generate` manually after every deploy (see 5b).
+Then add it to cron (hPanel -> Advanced -> Cron Jobs), **every minute**:
+
+```
+/home/u488681185/domains/industrialsupply.in/relink-media.sh
+```
+
+It is silent when healthy, logs to `~/domains/industrialsupply.in/relink-media.log`
+when it acts, and refuses to touch a non-empty directory (that case needs a human
+to merge files into `persistent_public` first).
+
+`STORAGE_PERSISTENT_LINK` in `.env` is only meaningful on hosts where PHP's
+`symlink()` is available. It does nothing here — leave it set, it is harmless.
 
 ### 5b. Post-deploy checklist
 
 A deploy wipes everything untracked inside the web root. After each one:
 
 ```bash
-php artisan storage:persist --force   # relink media (images 404 without this)
-php artisan sitemap:generate          # sitemap*.xml are gitignored, so they vanish
+~/domains/industrialsupply.in/relink-media.sh   # relink media (images 404 without this)
+php artisan sitemap:generate                    # sitemap*.xml are gitignored, so they vanish
 php artisan optimize:clear
 ```
+
+With the cron from 5a in place the relink happens by itself within a minute; run
+it by hand only if you do not want to wait.
 
 Then spot-check one image URL and `/sitemap.xml` — both must return 200.
 

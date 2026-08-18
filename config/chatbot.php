@@ -12,16 +12,18 @@ return [
     'enabled' => env('CHATBOT_ENABLED', true),
 
     // ---- Lead alert email ----
-    // Where new-lead alerts go. Set CHATBOT_LEAD_EMAIL in .env to your SALES inbox.
+    // Where new-lead alerts go. Falls back to LEAD_NOTIFY_EMAIL (config/leads.php) so
+    // one variable moves the chatbot and the enquiry/quote alerts together; set
+    // CHATBOT_LEAD_EMAIL only when bot chatter should land in a separate inbox.
     // (Email only fires when a phone number is captured — see 'notify'.)
-    'notify_email' => env('CHATBOT_LEAD_EMAIL', 'sales@industrialsupply.in'),
+    'notify_email' => env('CHATBOT_LEAD_EMAIL') ?: env('LEAD_NOTIFY_EMAIL', 'sales@fidusindia.com'),
 
     // Also email the moment a visitor merely OPENS the chat (before any details)?
     // Off by default to avoid noise — you can only call someone once they leave a number.
     'notify_on_engagement' => env('CHATBOT_NOTIFY_ON_OPEN', false),
 
     // ---- Widget appearance ----
-    'title'       => env('CHATBOT_TITLE', 'Industrial Needs'),
+    'title'       => env('CHATBOT_TITLE', 'Industrialsupply'),
     'subtitle'    => 'Typically replies in a few minutes',
     'primary'     => '#0056b3',   // header / bubble colour
     'launcher'    => 'Chat with us',
@@ -40,7 +42,7 @@ return [
     'flow' => [
         [
             'key' => 'intent',
-            'bot' => '👋 Hi! Welcome to Industrial Needs. What can we help you with?',
+            'bot' => '👋 Hi! Welcome to Industrialsupply. What can we help you with?',
             'type' => 'buttons',
             'options' => ['Request a price', 'Check availability', 'Technical question', 'Something else'],
         ],

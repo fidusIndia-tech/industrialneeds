@@ -32,22 +32,27 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping(5);
 
-        // ---- Background product-image pipeline (hands-off) ----
+        // ---- Background product-image pipeline (DISABLED 2026-08-18) ----
+        // Left dormant on purpose. The scheduler cron was never installed on production, so these
+        // two never ran; enabling cron for the media symlink would have silently resumed nightly
+        // provider API calls against a pipeline that is not currently being operated.
+        // To resume: uncomment both, deploy, and watch the first night's run.
+        //
         // 1) Once a day, enqueue up to ~a day's DigiKey quota worth of products that still need an
         //    image. Only 'placeholder' products are picked (in-flight 'queued' jobs are not re-sent);
         //    quota-blocked products reset themselves to 'placeholder' and are retried the next day.
-        $schedule->command('products:dispatch-image-jobs --limit=1000 --include-failed')
-            ->dailyAt('01:00')
-            ->withoutOverlapping(30)
-            ->runInBackground();
-
+        // $schedule->command('products:dispatch-image-jobs --limit=1000 --include-failed')
+        //     ->dailyAt('01:00')
+        //     ->withoutOverlapping(30)
+        //     ->runInBackground();
+        //
         // 2) Frequently drain the 'images' queue with a short-lived worker (no permanent daemon
         //    needed). --stop-when-empty exits when done; --max-time keeps each run under a minute so
         //    the next tick starts fresh; withoutOverlapping prevents pile-ups.
-        $schedule->command('queue:work database --queue=images --tries=3 --stop-when-empty --max-time=55 --sleep=1')
-            ->everyMinute()
-            ->withoutOverlapping(10)
-            ->runInBackground();
+        // $schedule->command('queue:work database --queue=images --tries=3 --stop-when-empty --max-time=55 --sleep=1')
+        //     ->everyMinute()
+        //     ->withoutOverlapping(10)
+        //     ->runInBackground();
 
         // ---- Static SEO sitemap ----
         // Regenerate /sitemap.xml (+ child sitemaps) once a day so Google can discover

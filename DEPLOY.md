@@ -121,7 +121,7 @@ sudo service apache2 restart
 
 ---
 
-## 5. Scheduler (daily sitemap + image pipeline)
+## 5. Scheduler (deploy-proof media + daily sitemap + image pipeline)
 
 Confirm this single cron entry exists on production (`crontab -e`):
 
@@ -129,7 +129,44 @@ Confirm this single cron entry exists on production (`crontab -e`):
 * * * * * cd /path/to/project && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-This regenerates the sitemap daily (02:00) and runs the background image jobs.
+This keeps the media symlink healthy (every minute), regenerates the sitemap
+daily (02:00) and runs the background image jobs.
+
+### 5a. ⚠️ `STORAGE_PERSISTENT_LINK` — required on the live server
+
+Uploaded media lives OUTSIDE the deploy tree, reached by a symlink at
+`storage/app/public`. A panel "Deploy" rebuilds the web root and destroys that
+symlink, after which every image on the site 404s.
+
+`storage:persist` heals this within a minute — **but it is opt-in and a silent
+no-op unless the flag is set.** In the server `.env`:
+
+```
+STORAGE_PERSISTENT_LINK=true
+# STORAGE_PERSISTENT_PATH=  # defaults to <parent-of-project-root>/persistent_public
+```
+
+Verify it is actually working — this must print a symlink, not a directory:
+
+```bash
+ls -ld storage/app/public
+php artisan storage:persist --force -v   # --force ignores the flag, for testing
+```
+
+If cron is not available on your plan, run `php artisan storage:persist --force`
+and `php artisan sitemap:generate` manually after every deploy (see 5b).
+
+### 5b. Post-deploy checklist
+
+A deploy wipes everything untracked inside the web root. After each one:
+
+```bash
+php artisan storage:persist --force   # relink media (images 404 without this)
+php artisan sitemap:generate          # sitemap*.xml are gitignored, so they vanish
+php artisan optimize:clear
+```
+
+Then spot-check one image URL and `/sitemap.xml` — both must return 200.
 
 **Also re-run `php artisan sitemap:generate` after any large product import**, so
 new products appear in the sitemap immediately rather than waiting for the daily run.

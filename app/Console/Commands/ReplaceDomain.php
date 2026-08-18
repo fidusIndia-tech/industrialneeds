@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
  * business_settings, seller/shop links, order and support records. This sweeps
  * every text column in every table and rewrites matches in place.
  *
+ * Matching is case-insensitive, and the rewrite normalises the URL while it is
+ * at it: an http:// link becomes https:// and a www. prefix is dropped, so
+ * "http://www.industrialneeds.co/x" lands on "https://industrialsupply.in/x".
+ *
  * It is idempotent (a second run finds nothing) and safe to preview first:
  *
  *   php artisan domain:replace --dry-run
@@ -41,6 +45,9 @@ class ReplaceDomain extends Command
         $database = DB::connection()->getDatabaseName();
         $this->info(($dry ? '[DRY RUN] ' : '') . "Replacing '{$from}' with '{$to}' in {$database}");
 
+        // Matches the domain with or without a scheme and with or without www.
+        $pattern = '#(https?://)?(www\.)?' . preg_quote($from, '#') . '#i';
+
         // Only character-ish columns can hold a URL; skip numeric/date/binary ones.
         $columns = DB::table('information_schema.columns')
             ->select('TABLE_NAME as table_name', 'COLUMN_NAME as column_name')
@@ -50,32 +57,76 @@ class ReplaceDomain extends Command
 
         $totalRows = 0;
         $touched = [];
+        $skipped = [];
 
         foreach ($columns as $column) {
             $table = $column->table_name;
             $field = $column->column_name;
 
-            $matches = DB::table($table)
-                ->where($field, 'like', '%' . $from . '%')
-                ->count();
+            // LOWER() rather than a bare LIKE so the match does not depend on
+            // the column's collation being case-insensitive.
+            $rows = DB::table($table)
+                ->whereRaw("LOWER(`{$field}`) LIKE ?", ['%' . strtolower($from) . '%'])
+                ->get();
 
-            if ($matches === 0) {
+            if ($rows->isEmpty()) {
                 continue;
             }
 
-            $totalRows += $matches;
-            $touched[] = "{$table}.{$field} ({$matches})";
-            $this->line("  {$table}.{$field} — {$matches} row(s)");
+            $keys = $this->primaryKey($database, $table);
 
-            if (!$dry) {
-                DB::statement(
-                    "UPDATE `{$table}` SET `{$field}` = REPLACE(`{$field}`, ?, ?) WHERE `{$field}` LIKE ?",
-                    [$from, $to, '%' . $from . '%']
-                );
+            if (!$keys) {
+                // Without a primary key there is no safe way to address a single
+                // row, so fall back to a blanket REPLACE(). That is exact-case
+                // only, hence the warning.
+                $skipped[] = "{$table}.{$field} ({$rows->count()})";
+                $this->warn("  {$table}.{$field} — {$rows->count()} row(s), no primary key; exact-case REPLACE() only");
+
+                if (!$dry) {
+                    DB::statement(
+                        "UPDATE `{$table}` SET `{$field}` = REPLACE(`{$field}`, ?, ?) WHERE `{$field}` LIKE ?",
+                        [$from, $to, '%' . $from . '%']
+                    );
+                }
+                continue;
             }
+
+            $changed = 0;
+
+            foreach ($rows as $row) {
+                $old = $row->{$field};
+
+                // MySQL's REPLACE() is case-sensitive, so do the rewrite in PHP
+                // where the pattern can be case-insensitive.
+                $new = preg_replace_callback($pattern, function ($m) use ($to) {
+                    return ($m[1] ?? '') !== '' ? 'https://' . $to : $to;
+                }, $old);
+
+                if ($new === $old) {
+                    continue;
+                }
+
+                $changed++;
+
+                if (!$dry) {
+                    $where = [];
+                    foreach ($keys as $key) {
+                        $where[$key] = $row->{$key};
+                    }
+                    DB::table($table)->where($where)->update([$field => $new]);
+                }
+            }
+
+            if ($changed === 0) {
+                continue;
+            }
+
+            $totalRows += $changed;
+            $touched[] = "{$table}.{$field} ({$changed})";
+            $this->line("  {$table}.{$field} — {$changed} row(s)");
         }
 
-        if (!$touched) {
+        if (!$touched && !$skipped) {
             $this->info('Nothing to do — no occurrences found.');
             return 0;
         }
@@ -87,5 +138,19 @@ class ReplaceDomain extends Command
         }
 
         return 0;
+    }
+
+    /**
+     * Primary key column names for a table, or an empty array when it has none.
+     */
+    private function primaryKey(string $database, string $table): array
+    {
+        return DB::table('information_schema.columns')
+            ->where('TABLE_SCHEMA', $database)
+            ->where('TABLE_NAME', $table)
+            ->where('COLUMN_KEY', 'PRI')
+            ->orderBy('ORDINAL_POSITION')
+            ->pluck('COLUMN_NAME')
+            ->all();
     }
 }

@@ -10,6 +10,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- End Google Tag Manager -->
     <meta charset="utf-8">
     <meta name="google-site-verification" content="MZpTkCi3VQ3AK8rz2DdUmLs5vYC65hd411G4sB8gwu8" />
+    <meta name="google-site-verification" content="TEbfPBd0hlvxKHe50_DGN399D43DUHFKKHIBN8aKVwQ" />
+
+    <!-- Google tag (gtag.js) — GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-N8CEH1HWD8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-N8CEH1HWD8');
+    </script>
+    <!-- End Google tag (gtag.js) -->
     <title>
         @yield('title')
     </title>

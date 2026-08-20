@@ -689,15 +689,15 @@
                                 <button type="button" class="btn btn-block ind-pd-quote-btn" data-toggle="modal" data-target="#inquiryModal">
                                     <i class="fa fa-envelope {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i> {{\App\CPU\translate('Request a Quote / Inquire')}}
                                 </button>
-                                @if($product->unit_price <= 0 || is_null($product->unit_price))
-                                    @php($wa_number = preg_replace('/\D/', '', \App\CPU\Helpers::get_business_settings('company_phone') ?? ''))
-                                    @if($wa_number !== '')
-                                        @php($wa_text = rawurlencode(\App\CPU\translate('Hello, I would like a quote for').': '.$product->name.($product->product_code ? ' ('.\App\CPU\translate('Part No').': '.$product->product_code.')' : '')))
-                                        <a href="https://wa.me/{{ $wa_number }}?text={{ $wa_text }}" target="_blank" rel="noopener"
-                                           class="btn btn-block mt-2" style="background:#25D366;color:#ffffff;font-weight:700;">
-                                            <i class="fa fa-whatsapp {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>{{\App\CPU\translate('WhatsApp Enquiry')}}
-                                        </a>
-                                    @endif
+                                {{-- Shown on every product, priced or not: WhatsApp is a primary
+                                     enquiry channel for B2B buyers, not a fallback for quote-only items. --}}
+                                @php($wa_number = preg_replace('/\D/', '', \App\CPU\Helpers::get_business_settings('company_phone') ?? ''))
+                                @if($wa_number !== '')
+                                    @php($wa_text = rawurlencode(\App\CPU\translate('Hello, I would like a quote for').': '.$product->name.($product->product_code ? ' ('.\App\CPU\translate('Part No').': '.$product->product_code.')' : '')))
+                                    <a href="https://wa.me/{{ $wa_number }}?text={{ $wa_text }}" target="_blank" rel="noopener"
+                                       class="btn btn-block mt-2" style="background:#25D366;color:#ffffff;font-weight:700;">
+                                        <i class="fa fa-whatsapp {{Session::get('direction') === "rtl" ? 'ml-2' : 'mr-2'}}"></i>{{\App\CPU\translate('WhatsApp Enquiry')}}
+                                    </a>
                                 @endif
                             </div>
                     <div class="ind-buy-expert">
@@ -705,8 +705,6 @@
                         {{\App\CPU\translate('Need bulk pricing?')}}
                         <a href="{{route('contacts')}}">{{\App\CPU\translate('Call a product expert')}}</a>
                     </div>
-                            <div style="text-align:{{Session::get('direction') === "rtl" ? 'right' : 'left'}};"
-                                class="sharethis-inline-share-buttons"></div>
                 </div>
             </div>
             <!-- FULL-WIDTH: Trust badges -->
@@ -1416,7 +1414,4 @@
         });
     </script>
 
-    <script type="text/javascript"
-            src="https://platform-api.sharethis.com/js/sharethis.js#property=5f55f75bde227f0012147049&product=sticky-share-buttons"
-            async="async"></script>
 @endpush

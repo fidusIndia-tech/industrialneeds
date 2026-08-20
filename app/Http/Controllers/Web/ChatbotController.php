@@ -69,9 +69,14 @@ class ChatbotController extends Controller
             $lead->{$key} = $value;
         }
 
-        // Promote to a callable lead + alert once we have a phone (only once).
-        if (!empty($lead->phone) && !$lead->notified) {
+        // Promote to a callable lead the moment a phone number lands.
+        if (!empty($lead->phone) && $lead->status === 'engaged') {
             $lead->status = 'lead';
+        }
+
+        // Send ONE complete inquiry email when the visitor answers the final question, so the
+        // alert carries every detail — including their free-text message (which comes last).
+        if (!$lead->notified && $this->isFinalStep($key)) {
             $lead->notified = true;
             $lead->save();
             $this->sendAlert($lead, false);
@@ -80,6 +85,21 @@ class ChatbotController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /** True when $key is the last data-collecting step in the configured flow. */
+    private function isFinalStep(?string $key): bool
+    {
+        if (!$key) {
+            return false;
+        }
+        $lastKey = null;
+        foreach ((array) config('chatbot.flow', []) as $s) {
+            if (($s['type'] ?? null) !== 'end' && !empty($s['key'])) {
+                $lastKey = $s['key'];
+            }
+        }
+        return $key === $lastKey;
     }
 
     /** Email the sales inbox. Best-effort — a mail failure never breaks the visitor's chat. */

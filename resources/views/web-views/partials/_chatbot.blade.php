@@ -131,7 +131,7 @@
         token=null; flow=[]; step=0; started=false;
         boot();
     }
-    var wa=document.querySelector('.ind-whatsapp-float'); // may be null off-homepage
+    var wa=document.querySelector('.ind-whatsapp-float'); // sitewide now; guard kept for safety
     function open(){ win.classList.add('open'); launcher.style.display='none'; if(wa) wa.style.display='none'; boot(); }
     function close(){ win.classList.remove('open'); launcher.style.display='flex'; if(wa) wa.style.display='inline-flex'; }
     launcher.onclick=open; closeBtn.onclick=close; if(newBtn) newBtn.onclick=restart;

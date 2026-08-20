@@ -2,6 +2,27 @@
 
 @section('title',ucfirst($data['data_from']).' products')
 
+@php
+    // SEO: a category or brand listing is a distinct page identified entirely by its query
+    // string, but the layout's default canonical is url()->current(), which drops the query.
+    // Every one of the 584 brand/category URLs in sitemap-pages.xml therefore declared a
+    // canonical of bare /products, so Google folded them all into a single page and indexed
+    // one URL instead of 584. Emit a self-referential canonical for those two listing types,
+    // with the params in the same order sitemap:generate writes them so the URLs match byte
+    // for byte. sort_by / min_price / max_price are deliberately left out — that filter noise
+    // is what the layout default was guarding against, and it stays folded onto the base page.
+    $canonicalUrl = url()->current();
+    if (in_array($data['data_from'] ?? null, ['category', 'brand'], true) && !empty($data['id'])) {
+        $canonicalUrl = route('products', [
+            'id'        => $data['id'],
+            'data_from' => $data['data_from'],
+            'page'      => max(1, (int) ($data['page_no'] ?? 1)),
+        ]);
+    }
+@endphp
+
+@section('canonical', $canonicalUrl)
+
 @push('css_or_js')
     <meta property="og:image" content="{{asset('storage/app/public/company')}}/{{$web_config['web_logo']}}"/>
     <meta property="og:title" content="Products of {{$web_config['name']}} "/>
